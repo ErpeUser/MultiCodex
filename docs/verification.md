@@ -6,10 +6,10 @@ Stand: 13. November 2026, Entwicklungsstand 0.2.0-dev.
 
 | Pruefung | Ergebnis | Aussagegrenze |
 |---|---|---|
-| Git-Bundle wiederhergestellt | Ausgangscommit 55cda8426a1f203abcfffe569e87556034b68dce erhalten | Kein GitHub-Push |
+| Git-Bundle wiederhergestellt und Source publiziert | Ausgangscommit 55cda8426a1f203abcfffe569e87556034b68dce erhalten; vollständiger Quellbaum auf `main` veröffentlicht | Kein Windows-/Installer-Nachweis |
 | ZIP mit wiederhergestelltem Commit verglichen | 37 Dateien, 0 Unterschiede | Belegt nur den erhaltenen Entwicklungsstand |
 | Baseline Python / Node | 21 / 3 bestanden | Alte zentrale Funktionsluecken dadurch nicht abgedeckt |
-| Aktuelle Python-Suite | 107 Tests bestanden | Linux, temporaere Daten, Provider-/Desktop-Fixtures |
+| Aktuelle Python-Suite | 109 Tests bestanden | Linux, temporaere Daten, Provider-/Desktop-Fixtures |
 | Aktuelle Node-Suite | 9 Tests bestanden | Echter Node-Unterprozess, Upstream-Fassade bei Inventartests kontrolliertes Testpaket |
 | Python-Compilation / Node-Syntax | Erfolgreich | Kein Installer- oder GUI-Nachweis |
 | Workflow YAML | Geparst | Nicht auf Windows ausgefuehrt |
@@ -42,7 +42,7 @@ Die Python-Umgebung hat psutil 7.2.2; der Windows-Build pinnt 6.1.1. Dieser Unte
 | Installation | Echte Setup-Datei, Erstinstallation, Versionsupgrade, regulare Deinstallation, Erhalt realer Userdaten |
 | Kompatibilitaet | Konkrete Windows-/Desktop-/CLI-Versionen, neue kombinierte ChatGPT-App |
 | Distribution | Transitive Lockfiles, eigenes Icon, vollstaendige Lizenzpruefung, optional legitime Signatur |
-| GitHub | Privates Repository erreichbar, Push, gruenes Windows-CI, echtes Release mit Setup-Asset |
+| GitHub | Privates Repository erreichbar; Source-Push auf `main` bestätigt | Für den letzten Commit liegen keine Statuschecks vor; Windows-CI und Release-Asset fehlen |
 
 ## Review
 

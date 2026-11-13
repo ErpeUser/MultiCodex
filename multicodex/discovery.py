@@ -43,8 +43,28 @@ def default_legacy_roots() -> list[Path]:
     """Only known locations; never search other browser data or whole disk."""
     cwd = Path.cwd()
     local = Path(os.environ.get('LOCALAPPDATA') or Path.home())
-    return [cwd / 'CodexProfiles', Path(__file__).resolve().parents[2] / 'CodexProfiles',
-            local / 'CodexProfiles']
+    roaming = Path(os.environ.get('APPDATA') or Path.home())
+    user = Path(os.environ.get('USERPROFILE') or Path.home())
+    candidates = [
+        # ai-multi-instance's documented working-directory layout.
+        cwd / 'CodexProfiles',
+        Path(__file__).resolve().parents[2] / 'CodexProfiles',
+        # Common per-user locations used when the launcher is installed or
+        # started outside its source checkout. These are explicit roots,
+        # never a recursive scan of the user's profile or browser data.
+        local / 'CodexProfiles',
+        roaming / 'CodexProfiles',
+        user / 'CodexProfiles',
+        user / '.codex' / 'CodexProfiles',
+    ]
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = os.path.normcase(str(candidate.expanduser().resolve(strict=False)))
+        if key not in seen:
+            unique.append(candidate)
+            seen.add(key)
+    return unique
 
 
 def find_legacy_codex_executable() -> Path:

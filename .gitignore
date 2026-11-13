@@ -1,0 +1,41 @@
+# Never publish local user state, OAuth secrets, or copied sessions
+.codex/
+CodexProfiles/
+ClaudeProfiles/
+**/auth.json
+**/openai-codex-accounts.json
+**/api-routes.json
+**/local-client-tokens.json
+**/usage_cache.json
+**/Cookies
+**/Cookies-journal
+*.wal
+*.lock
+.env
+.env.*
+!.env.example
+# Build and dependencies
+node_modules/
+bridge/node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+output/
+*.spec.bak
+.venv/
+*.egg-info/
+# local runtime
+*.log
+*.tmp
+.SDStore
+# Recovery scratch and real runtime state never belong in commits
+.superpowers/
+profiles/
+.sessions/
+*.bundle
+release-acceptance.local.json
+# CI evidence is uploaded explicitly, not committed as generated source
+evidence/

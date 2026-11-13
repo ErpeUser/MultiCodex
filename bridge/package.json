@@ -1,0 +1,10 @@
+{
+  "name": "multicodex-account-service",
+  "version": "0.2.0-dev",
+  "private": true,
+  "type": "module",
+  "description": "Local, redacted RPC bridge to published codex-multi-auth APIs",
+  "engines": {"node": ">=22.19.0"},
+  "dependencies": {"codex-multi-auth": "2.26.0"},
+  "scripts": {"test": "node --test tests/*.test.mjs"}
+}

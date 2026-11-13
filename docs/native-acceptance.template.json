@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "source_commit": null,
+  "setup_sha256": null,
+  "reviewer": null,
+  "checked_at": null,
+  "checks": {
+    "windows_11_x64": false,
+    "three_isolated_instances": false,
+    "switch_target_only": false,
+    "oauth_relogin": false,
+    "cancelled_relogin_preserves_old": false,
+    "wrong_account_rejected": false,
+    "existing_profile_preserved": false,
+    "existing_pool_secure_import": false,
+    "crash_recovery": false,
+    "encrypted_credentials": false,
+    "gui_actions": false,
+    "dark_light_dpi_keyboard": false,
+    "installer_upgrade_uninstall": false,
+    "desktop_version_compatibility": false,
+    "dependency_locks": false,
+    "licenses_and_app_icon": false
+  }
+}

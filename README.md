@@ -29,7 +29,7 @@ Die Historie beginnt unveraendert mit `55cda8426a1f203abcfffe569e87556034b68dce`
 | Vollstaendig reproduzierbare Abhaengigkeiten | Direkte Versionen gepinnt; vollstaendige, gepruefte transitive Lockfiles und Runner-/Compiler-Pins fehlen. |
 | Eigenes Anwendungssymbol, Signierung | Versionsressource vorhanden; eigenes Icon und Signatur fehlen. Keine SmartScreen-Zusage. |
 
-Zielrepository ist **privat: `ErpeUser/MultiCodex`**. Der verbundene Zugriff lieferte HTTP 404: fehlend oder nicht erreichbar. Die verfuegbare Schnittstelle konnte kein Repository anlegen. Kein Push und kein Download-Link werden vorgetaeuscht.
+Zielrepository ist **privat: [`ErpeUser/MultiCodex`](https://github.com/ErpeUser/MultiCodex)**. Der verifizierte Entwicklungsstand ist auf dem Default-Branch `main` abgelegt. Das ist weiterhin kein fertiges Windows-Release: Native Abnahme, Installer und GitHub-Release bleiben gesperrt, bis die in [Installation](docs/installation.md) und [Pruefmatrix](docs/verification.md) beschriebenen Nachweise vorliegen.
 
 ## Bedienung
 

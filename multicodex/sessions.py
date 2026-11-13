@@ -15,6 +15,10 @@ from .locks import FileLock
 from .profiles import ProfileStore, ProfileError, _atomic_json, is_redirect
 
 
+class MissingIdentityError(ProfileError):
+    """The profile is valid but has no verified identity for this session."""
+
+
 def valid_session_id(value):
     return value == 'default' or (isinstance(value, str) and len(value) == 32
                                  and all(c in '0123456789abcdef' for c in value))
@@ -89,7 +93,7 @@ class SessionStore:
         data = self._data(name)
         row = data.get('sessions', {}).get(session_id)
         if not isinstance(row, dict) or not isinstance(row.get('email'), str):
-            raise ProfileError('Session has no verified account metadata')
+            raise MissingIdentityError('Session has no verified account metadata')
         return AccountIdentity(row['email'], row.get('plan'), row.get('account_id'))
 
     def list(self, name):

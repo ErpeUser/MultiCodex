@@ -2,8 +2,7 @@
 from __future__ import annotations
 import threading
 from .codex_client import CodexError
-from .profiles import ProfileError
-from .sessions import SessionStore
+from .sessions import MissingIdentityError, SessionStore
 
 class OperationError(RuntimeError):
     pass
@@ -80,12 +79,10 @@ class SessionController:
             # expired session can no longer be read by the official app server.
             try:
                 previous = self.sessions.identity(name, profile.session_id)
-            except ProfileError as exc:
+            except MissingIdentityError:
                 # A newly created profile has no registered identity yet. A
-                # corrupt profile or unreadable session catalogue must remain
-                # a hard error instead of being mistaken for that state.
-                if str(exc) != 'Session has no verified account metadata':
-                    raise
+                # corrupt profile or unreadable session catalogue remains a
+                # hard error instead of being mistaken for that state.
                 try:
                     previous = self.auth.describe(profile.codex_home)
                 except CodexError as exc:

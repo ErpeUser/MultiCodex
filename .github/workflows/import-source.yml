@@ -1,0 +1,55 @@
+name: Import verified MultiCodex source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bootstrap/chunks/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-source:
+    if: github.repository == 'ErpeUser/MultiCodex'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate transfer and publish source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          from pathlib import Path
+
+          parts = sorted(Path('bootstrap/chunks').glob('*.b64'))
+          if len(parts) != 7:
+              raise SystemExit(f'Expected 7 transfer parts, found {len(parts)}')
+          payload = base64.b64decode(b''.join(p.read_bytes() for p in parts), validate=True)
+          digest = hashlib.sha256(payload).hexdigest()
+          expected = '6dfdb9db6c5650d839e8f9848e01ab9a86e55e416814395a241888d2484ae6e8'
+          if digest != expected:
+              raise SystemExit(f'Source digest mismatch: {digest}')
+          Path('/tmp/multicodex-source.tar.xz').write_bytes(payload)
+          PY
+          tar -xJf /tmp/multicodex-source.tar.xz -C .
+          rm -r bootstrap
+          rm -f IMPORT_IN_PROGRESS.md
+          rm -f .github/workflows/import-source.yml
+          test -f README.md
+          test -f multicodex/gui.py
+          test -f .github/workflows/windows.yml
+          git add -A
+          actual_tree="$(git write-tree)"
+          expected_tree='ad822d40c7caecdda276b3a99fbc81a09ccc8d09'
+          if [ "$actual_tree" != "$expected_tree" ]; then
+            echo "Tree mismatch: $actual_tree (expected $expected_tree)" >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: publish verified MultiCodex 0.2.0-dev source'
+          git push origin HEAD:main

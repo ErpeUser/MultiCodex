@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - 2026-11-13
+
+- Published the complete verified source tree to the private `ErpeUser/MultiCodex` default branch after the archive import workflow could not obtain a runner.
+- Expanded read-only legacy profile discovery to the known local, roaming, user and `.codex/CodexProfiles` roots without recursive or browser-data scanning.
+- Prevented login fallback from treating corrupt session catalogues as a missing account identity; added a regression test for the blocked mutation path.
+
 ## 0.2.0-dev - 2026-11-13
 
 Recovered the exact 0.1.0-dev commit and all 37 archived files; continued its history rather than recreating a disconnected project.

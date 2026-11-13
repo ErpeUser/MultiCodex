@@ -41,7 +41,11 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 function withStore(data, work) {
-  const root=mkdtempSync(join(tmpdir(),'multicodex-contract-'));
+  const base=tmpdir();
+  // Some hermetic Linux runners do not pre-create /tmp. Node's tmpdir()
+  // contract returns the path, but does not promise that it already exists.
+  mkdirSync(base,{recursive:true});
+  const root=mkdtempSync(join(base,'multicodex-contract-'));
   try {
     const module=join(root,'node_modules','codex-multi-auth'); mkdirSync(module,{recursive:true});
     writeFileSync(join(module,'package.json'),JSON.stringify({name:'codex-multi-auth',version:'2.26.0',type:'module',exports:{'./package.json':'./package.json','./storage':'./storage.mjs'}}));

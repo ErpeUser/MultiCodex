@@ -38,6 +38,7 @@ jobs:
           tar -xJf /tmp/multicodex-source.tar.xz -C .
           rm -r bootstrap
           rm -f IMPORT_IN_PROGRESS.md
+          rm -f MultiCodex-source-0.2.0-dev.tar.xz
           rm -f .github/workflows/import-source.yml
           test -f README.md
           test -f multicodex/gui.py

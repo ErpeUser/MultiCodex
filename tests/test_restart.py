@@ -122,3 +122,11 @@ class RestartTests(unittest.TestCase):
         self.assertTrue(any(s['id']=='default' and s['email']=='old@example.invalid' for s in stored))
         self.ctl.switch('Work', 'default', confirmed=True)
         self.assertEqual(self.store.get('Work').account_email, 'old@example.invalid')
+
+    def test_corrupt_session_catalogue_does_not_fall_back_to_live_auth(self):
+        profile = self.store._entry('Work')
+        (profile / 'profile.json').write_text('{"version": 1,', encoding='utf-8')
+        with self.assertRaises(ValueError):
+            self.ctl.login('Work', confirmed=True, on_browser=lambda u: None,
+                           cancel=threading.Event())
+        self.assertEqual(self.instances.actions, [])

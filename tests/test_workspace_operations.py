@@ -188,7 +188,13 @@ class OperationTests(unittest.TestCase):
         for path in (self.root/'admin').glob('*'):
             if path.is_file():self.assertNotIn(b'secret',path.read_bytes())
     def test_symlink_directory_is_rejected(self):
-        link=self.root/'link';link.symlink_to(self.root/'admin',target_is_directory=True)
+        link=self.root/'link'
+        try:
+            link.symlink_to(self.root/'admin',target_is_directory=True)
+        except OSError as exc:
+            if getattr(exc, 'winerror', None) == 1314:
+                self.skipTest('symlink privilege unavailable')
+            raise
         with self.assertRaises(OperationError):WorkspaceOperations(link,self.api,self.quota)
 
     def test_expired_unexecuted_review_can_be_prepared_again(self):

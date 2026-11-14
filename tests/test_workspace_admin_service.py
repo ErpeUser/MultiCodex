@@ -77,6 +77,12 @@ class WorkspaceAdminServiceTests(unittest.TestCase):
         return self.service.connect('workspace-a', self.key)
 
     def prepare(self, action, **kwargs):
+        body = kwargs.get('body') or {}
+        if kwargs.get('account_key') is None and (
+            action == 'remove_user' or
+            action == 'update_user' and {'seat_type', 'role'} & set(body)
+        ):
+            kwargs['account_key'] = self.account
         return self.service.prepare(action, 'workspace-a', self.key, **kwargs)['selected']
 
     def execute(self, row):

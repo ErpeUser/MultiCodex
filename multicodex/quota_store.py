@@ -522,7 +522,9 @@ class QuotaStore:
                 if source.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
                     raise QuotaError('STORAGE')
                 source.backup(target)
-            with temp_path.open('rb') as stream:
+            # Windows rejects fsync on a read-only handle (EBADF/WinError 9).
+            # Open the staged backup read-write solely for the durability barrier.
+            with temp_path.open('r+b') as stream:
                 os.fsync(stream.fileno())
             _safe_path(destination)
             os.replace(temp_path, destination)

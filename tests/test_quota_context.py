@@ -95,11 +95,17 @@ class ContextTests(unittest.TestCase):
     def test_schema_v1_migrates_without_losing_history(self):
         import sqlite3
         self.store.capture(self.key,self.data,observed_at=1100)
-        with sqlite3.connect(self.store.path) as db:
+        db = sqlite3.connect(self.store.path)
+        try:
             db.execute('PRAGMA user_version = 1')
+        finally:
+            db.close()
         reopened=QuotaStore(self.store.root)
-        with sqlite3.connect(self.store.path) as db:
+        db = sqlite3.connect(self.store.path)
+        try:
             self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],2)
+        finally:
+            db.close()
         self.assertEqual(reopened.latest(self.key)['primary_used_percent'],20)
 
 if __name__=='__main__':unittest.main()

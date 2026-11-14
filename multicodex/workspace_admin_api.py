@@ -7,6 +7,7 @@ server remains the authority. Credentials live only for the duration of a call.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import math
 import re
@@ -121,6 +122,8 @@ class AdminContract:
         if not isinstance(document, dict) or len(_json(document)) > MAX_BYTES:
             raise AdminAPIError('CONTRACT_INVALID')
         self._doc = copy.deepcopy(document)
+        self.fingerprint = hashlib.sha256(json.dumps(document, sort_keys=True, allow_nan=False,
+            separators=(',', ':')).encode('utf-8')).hexdigest()
         if not str(document.get('openapi', '')).startswith(('3.0.', '3.1.')):
             raise AdminAPIError('CONTRACT_INVALID')
         if document.get('servers') != [{'url': API_BASE}]:
@@ -183,10 +186,13 @@ class AdminContract:
             raise AdminAPIError('UNSUPPORTED_SCHEMA') from None
         return self._resolve(node, depth + 1)
 
-    def _validate(self, value, schema, depth=0):
+    def _validate(self, value, schema, depth=0, *, direction='request'):
         if depth > 32:
             raise AdminAPIError('UNSUPPORTED_SCHEMA')
         schema = self._resolve(schema)
+        if (direction == 'request' and schema.get('readOnly') is True or
+            direction == 'response' and schema.get('writeOnly') is True):
+            raise AdminAPIError()
         if any(k not in self._KEYWORDS | self._ANNOTATIONS and not k.startswith('x-') for k in schema):
             raise AdminAPIError('UNSUPPORTED_SCHEMA')
         if value is None and schema.get('nullable') is True:
@@ -200,7 +206,7 @@ class AdminContract:
             good = 0
             for sub in variants:
                 try:
-                    self._validate(value, sub, depth + 1)
+                    self._validate(value, sub, depth + 1, direction=direction)
                     good += 1
                 except AdminAPIError as exc:
                     if exc.code != 'INVALID_REQUEST':
@@ -236,20 +242,20 @@ class AdminContract:
                 if not isinstance(key, str):
                     raise AdminAPIError()
                 if key in props:
-                    self._validate(item, props[key], depth + 1)
+                    self._validate(item, props[key], depth + 1, direction=direction)
                 else:
                     additional = schema.get('additionalProperties', True)
                     if additional is False:
                         raise AdminAPIError()
                     if isinstance(additional, dict):
-                        self._validate(item, additional, depth + 1)
+                        self._validate(item, additional, depth + 1, direction=direction)
         elif type(value) is list:
             if len(value) < schema.get('minItems', 0) or len(value) > schema.get('maxItems', 10000):
                 raise AdminAPIError()
             if schema.get('uniqueItems') and len({_json(x) for x in value}) != len(value):
                 raise AdminAPIError()
             for item in value:
-                self._validate(item, schema.get('items', {}), depth + 1)
+                self._validate(item, schema.get('items', {}), depth + 1, direction=direction)
         elif type(value) is str:
             if len(value) < schema.get('minLength', 0) or len(value) > schema.get('maxLength', 65536) or re.search(r'[\x00-\x1f\x7f]', value):
                 raise AdminAPIError()
@@ -379,7 +385,7 @@ class AdminContract:
         if not isinstance(schema, dict):
             raise AdminAPIError('RESPONSE_INVALID')
         try:
-            self._validate(value, schema)
+            self._validate(value, schema, direction='response')
         except AdminAPIError:
             raise AdminAPIError('RESPONSE_INVALID') from None
         return value

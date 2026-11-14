@@ -74,6 +74,15 @@ class OperationTests(unittest.TestCase):
         blank=self.quota.register(profile_id='Blank',session_id='default',email='a@example.com',workspace_id='w',now=900)
         with self.assertRaises(OperationError) as error:self.prepare(account_key=blank)
         self.assertEqual(error.exception.code,'SNAPSHOT_REQUIRED');self.assertEqual(self.provider.writes,[])
+
+    def test_role_change_requires_quota_evidence_before_network_mutation(self):
+        self.provider.users['owner-b']={'id':'owner-b','email':'a@example.com','role':'account-owner',
+                                       'seat_type':'default','is_scim_managed':False}
+        blank=self.quota.register(profile_id='BlankRole',session_id='default',email='a@example.com',workspace_id='w',now=900)
+        with self.assertRaises(OperationError) as error:
+            self.prepare(action='update_user',target='owner-b',body={'role':'standard-user'},account_key=blank)
+        self.assertEqual(error.exception.code,'SNAPSHOT_REQUIRED')
+        self.assertEqual(self.provider.writes,[])
     def test_account_email_must_match_remote_member(self):
         wrong=self.quota.register(profile_id='Wrong',session_id='default',email='other@example.com',workspace_id='w',now=900)
         with self.assertRaises(OperationError):self.prepare(account_key=wrong)

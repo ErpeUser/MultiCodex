@@ -7,7 +7,52 @@ from __future__ import annotations
 import threading
 import time
 from .codex_client import AccountIdentity, CodexAccountService, CodexError
-from .quota_store import LIMIT_TYPES, QuotaError, normalized_usage, _text
+from .quota_store import (CREDIT_STATUSES, LIMIT_TYPES, RESET_TYPES, QuotaError,
+                           _reset_credits, _stamp, _text, normalized_usage)
+
+
+def _sanitize_reset_credits(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) - {'availableCount', 'credits'} or 'availableCount' not in value:
+        raise CodexError('PROTOCOL')
+    count = value['availableCount']
+    if type(count) is not int or count < 0 or count > 1000000:
+        raise CodexError('PROTOCOL')
+    credits = value.get('credits')
+    if credits is not None and (not isinstance(credits, list) or len(credits) > 10000):
+        raise CodexError('PROTOCOL')
+    result = {'available_count': count, 'credits': None if credits is None else []}
+    if credits is not None:
+        for credit in credits:
+            if not isinstance(credit, dict):
+                raise CodexError('PROTOCOL')
+            allowed = {'id', 'resetType', 'status', 'grantedAt', 'expiresAt', 'title', 'description'}
+            required = {'id', 'resetType', 'status', 'grantedAt'}
+            if set(credit) - allowed or not required.issubset(credit):
+                raise CodexError('PROTOCOL')
+            item = {
+                'id': _text(credit['id'], 160),
+                'reset_type': credit['resetType'],
+                'status': credit['status'],
+                'granted_at': credit['grantedAt'],
+                'expires_at': credit.get('expiresAt'),
+                'title': credit.get('title'),
+                'description': credit.get('description'),
+            }
+            if item['reset_type'] not in RESET_TYPES or item['status'] not in CREDIT_STATUSES:
+                raise CodexError('PROTOCOL')
+            try:
+                _stamp(item['granted_at'])
+                if item['expires_at'] is not None:
+                    _stamp(item['expires_at'])
+                _text(item['title'], 1000, optional=True)
+                _text(item['description'], 1000, optional=True)
+                _reset_credits({'available_count': count, 'credits': [item]})
+            except QuotaError as exc:
+                raise CodexError('PROTOCOL') from exc
+            result['credits'].append(item)
+    return result
 
 
 def sanitize_limits(data: dict) -> dict:
@@ -54,6 +99,7 @@ def sanitize_limits(data: dict) -> dict:
                     if obj.get('rateLimitReachedType') is not None),None)
     result['rate_limit_reached_type'] = (None if reached is None else reached
         if isinstance(reached,str) and reached in LIMIT_TYPES else 'UNKNOWN_PROVIDER_LIMIT')
+    result['reset_credits'] = _sanitize_reset_credits(data.get('rateLimitResetCredits'))
     try:
         result['account_id'] = _text(data.get('accountId'),optional=True)
         result['plan_type'] = _text(selected.get('planType'),64,optional=True)

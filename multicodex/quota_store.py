@@ -36,6 +36,8 @@ AUTH_STATES = frozenset({'REGISTERED', 'AUTHENTICATED', 'SESSION_EXPIRED', 'DISA
 CAPTURE_REASONS = frozenset({'poll', 'manual_refresh', 'before_removal', 'access_restored', 'relogin'})
 LIMIT_TYPES = frozenset({'workspaceMemberUsageLimitReached', 'workspaceCreditLimitReached',
     'userRateLimitReached', 'rateLimitReached', 'workspaceUsageLimitReached'})
+RESET_TYPES = frozenset({'codexRateLimits', 'unknown'})
+CREDIT_STATUSES = frozenset({'available', 'redeeming', 'redeemed', 'unknown'})
 MAX_TIMESTAMP = 253402300799
 
 
@@ -64,6 +66,34 @@ def _number(value):
 def _optional_bool(value):
     if value is not None and type(value) is not bool:
         raise QuotaError()
+    return value
+
+
+def _reset_credits(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) - {'available_count', 'credits'} or 'available_count' not in value:
+        raise QuotaError()
+    count = value['available_count']
+    if type(count) is not int or count < 0 or count > 1000000:
+        raise QuotaError()
+    credits = value.get('credits')
+    if credits is not None and (not isinstance(credits, list) or len(credits) > 10000):
+        raise QuotaError()
+    if credits is not None:
+        for credit in credits:
+            if (not isinstance(credit, dict) or set(credit) - {
+                    'id', 'reset_type', 'status', 'granted_at', 'expires_at', 'title', 'description'} or
+                    not {'id', 'reset_type', 'status', 'granted_at'}.issubset(credit)):
+                raise QuotaError()
+            _text(credit['id'], 160)
+            if credit['reset_type'] not in RESET_TYPES or credit['status'] not in CREDIT_STATUSES:
+                raise QuotaError()
+            _stamp(credit['granted_at'])
+            if credit.get('expires_at') is not None:
+                _stamp(credit['expires_at'])
+            for field in ('title', 'description'):
+                _text(credit.get(field), 1000, optional=True)
     return value
 
 
@@ -115,6 +145,7 @@ def normalized_usage(data: dict) -> dict:
     # Do not echo an arbitrary string from the provider into storage/diagnostics.
     out['rate_limit_reached_type'] = (None if reached is None else
         reached if isinstance(reached, str) and reached in LIMIT_TYPES else 'UNKNOWN_PROVIDER_LIMIT')
+    out['reset_credits'] = _reset_credits(data.get('reset_credits'))
     return out
 
 
@@ -263,7 +294,7 @@ class QuotaStore:
             'plan_type', 'seat_type', 'observed_at', 'source', 'access_state', 'capture_reason',
             'schema_version', 'context_revision', 'additional_limits_reported',
             'ordinary_usage_allowed', 'spend_control_reached', 'rate_limit_reached_type'}
-        snapshot = self._stored_object(payload, required, required)
+        snapshot = self._stored_object(payload, required | {'reset_credits'}, required)
         try:
             if snapshot['account_key'] != key or snapshot['source'] != 'official-app-server':
                 raise QuotaError()
@@ -297,6 +328,8 @@ class QuotaStore:
             reached = snapshot['rate_limit_reached_type']
             if reached is not None and reached not in LIMIT_TYPES | {'UNKNOWN_PROVIDER_LIMIT'}:
                 raise QuotaError()
+            if 'reset_credits' in snapshot:
+                _reset_credits(snapshot['reset_credits'])
         except (QuotaError, TypeError) as exc:
             raise QuotaError('STORAGE') from exc
         return snapshot

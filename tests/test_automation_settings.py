@@ -37,9 +37,14 @@ class SettingsTests(unittest.TestCase):
     def test_unknown_fields_and_bad_types_are_rejected(self):
         for value in ({'enabled':'true'},{'maximum_retries':True},{'poll_interval_seconds':0},
                       {'warning_threshold_percent':float('nan')},{'token':'secret'},
-                      {'allowed_profiles':['../escape']},{'automatic_activation_enabled':True}):
+                      {'allowed_profiles':['../escape']},{'automatic_activation_enabled':'yes'}):
             with self.subTest(value=value),self.assertRaises(self.mod.SettingsError):self.settings.save(value)
         self.assertFalse(self.settings.load()['enabled'])
+
+    def test_explicit_activation_opt_in_does_not_authorize_any_profile(self):
+        self.settings.save({'automatic_activation_enabled':True})
+        self.assertTrue(self.settings.load()['automatic_activation_enabled'])
+        self.assertEqual(self.settings.load()['allowed_profiles'],[])
 
     def test_settings_symlink_is_refused(self):
         external=self.root/'external';external.write_text('original')

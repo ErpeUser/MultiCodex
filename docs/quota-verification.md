@@ -1,3 +1,7 @@
+# Historical report: first quota work package
+
+This report records the earlier local slice. For the subsequent feature-branch work, see [continuation-verification.md](continuation-verification.md). Its old not-implemented/not-pushed statements are historical, not the current feature status.
+
 # MultiCodex: Verifizierter lokaler Entwicklungsstand
 
 **Status:** Teilimplementierung als Patch, nicht auf GitHub gepusht und kein fertiges Windows-Release.

@@ -62,3 +62,14 @@ actions. Better Design DOM dashboard/spacing checks are not measurements of a Tk
 application and were not fabricated. No independent review agent was available;
 source review and a separate skeptical pass were performed inline. The existing
 full-repository/native release gates remain open.
+
+
+## Continuation: queue and directory
+
+Reviewed two added panels and the existing worker integration. Better Design
+comprehension check returned zero findings for queue copy (text-only). Actual
+Tk screenshots were inspected for activation dark/light/small and directory
+dark/light; the panels retain existing tokens and explicit action labels.
+No whole-app visual pass is claimed. The native Desktop binding, six original
+views, installed Windows shell, DPI and Figma remain unmeasured this session.
+Admin keys are masked and cleared on submission; no screenshot contains one.

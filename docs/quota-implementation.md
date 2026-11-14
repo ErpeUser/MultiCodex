@@ -1,8 +1,9 @@
 # Persistent quota history: implemented development slice
 
 Base: `bd532520a29e0848676e2b864c0fd7a6b4a5d510`, private `ErpeUser/MultiCodex`, `main`.
-This is a locally tested patch, not a published release or the complete requested
-workspace/profile automation product. No remote file, commit or account changed.
+The initial patch was published on `feature/quota-history-monitoring-20261114`.
+This document includes the subsequent activation/directory extension; it is not a
+release or the complete requested product. No production account was changed.
 
 ## Implemented
 
@@ -61,16 +62,16 @@ slots, without activating them. The global multi-auth pool is not imported and
 linked legacy profiles retain the old manual Usage path. Deleted or unavailable
 local bindings retain existing history but cannot be probed automatically.
 
-A worker tick makes at most one provider observation. The host's existing worker
+A quota-monitor tick makes at most one provider observation. An explicitly
+queued profile start additionally performs preflight and post-start checks. The host's existing worker
 queue serializes quota work; per-profile and per-account OS locks avoid races
 with login/switch and another manager process. Retries are bounded and persist
 across manager restart. Authentication mismatches suspend polling. Explicit
 manual refresh can retry after repair; it cannot re-enable removed access.
 
 The backend can record known access events and enforce a stored snapshot before
-an authorized removal via `prepare_removal`. **No workspace API is connected**,
-so these are prerequisites for future integration, not executed membership
-management. A generic network/authentication failure is not proof of removal.
+an authorized removal via `prepare_removal`. **A read-only directory adapter is now available**, but it does not automatically map members to saved logins;
+these remain prerequisites for separately verified membership management. A generic network/authentication failure is not proof of removal.
 Automatic detection of every external membership change and GUI access-state
 editing are not implemented. An authorized adapter must supply that evidence.
 
@@ -81,9 +82,9 @@ editing are not implemented. An authorized adapter must supply that evidence.
 | Durable quota history/offline reset evaluation | Implemented, fixture-tested |
 | Bounded monitoring of saved managed logins | Implemented, fixture-tested |
 | Entire installed app integration | Source-wired; full app runtime unverified |
-| Automatic profile activation/router | Not implemented; setting rejects activation |
-| Persistent multi-step profile activation state machine | Not implemented |
-| Members/invites/roles/seats/SCIM execution | No configured verified adapter; no actions |
+| Explicit exact-account profile starts/router | Implemented with durable queue; native Windows acceptance open |
+| Persistent multi-step profile activation state machine | Implemented; recovery and CAS tested |
+| Members/invites/roles/seats/SCIM execution | Directory GET adapter only; no mutations or SCIM writes |
 | Account/workspace/role discovery beyond provider evidence | Unknown remains unknown |
 | Outlook | Not added; deliberately optional |
 | OS notifications | Not added; current status is shown in the UI |
@@ -92,7 +93,7 @@ editing are not implemented. An authorized adapter must supply that evidence.
 | Existing account list search/filter | New quota account table only, not old Accounts page |
 | Full native Windows/DPI/OAuth/installer acceptance | Not performed |
 | Full original repository Python/Node regression suites | Not performed in this partial checkout |
-| Git commit/push/new CI | Not performed; connector exposes reads only |
+| Git commit/push/new CI | Feature branch published; see continuation verification and GitHub status |
 
 The local history is not encrypted; it contains account metadata but no intended
 credentials. OS user permissions still matter. Unknown workspace data cannot be
@@ -109,3 +110,5 @@ reviewed retention/export feature exists. No independent code review occurred.
 
 These source contracts do not prove compatibility with the user's installed CLI;
 that integration must be exercised during native acceptance.
+
+See [profile activation](profile-activation.md) and [continuation verification](continuation-verification.md) for the added development slice.

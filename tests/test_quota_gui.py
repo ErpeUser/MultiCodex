@@ -74,4 +74,45 @@ class GuiBridgeTests(unittest.TestCase):
         self.controller._loaded({'rows':[],'settings':dict(DEFAULTS),'profiles':[],'issues':[],'operation':{'state':'IDLE'}})
         self.assertEqual(self.host.rendered,1)
 
+
+    def test_activation_request_is_queued_not_executed_on_tk_thread(self):
+        self.assertTrue(callable(getattr(self.controller,'enqueue_activation',None)))
+        self.controller.enqueue_activation('a'*64)
+        self.assertFalse(self.path.exists())
+        self.assertEqual(len(self.host.jobs),1)
+
+    def test_close_blocks_activation_request(self):
+        self.assertTrue(callable(getattr(self.controller,'enqueue_activation',None)))
+        self.controller.close();self.controller.enqueue_activation('a'*64)
+        self.assertEqual(self.host.jobs,[])
+
+    def test_unknown_activation_action_does_not_enqueue(self):
+        self.assertTrue(callable(getattr(self.controller,'activation_action',None)))
+        self.controller.activation_action('a'*32,'delete')
+        self.assertEqual(self.host.jobs,[])
+
+    def test_refresh_keeps_workspace_reads_explicit(self):
+        self.assertTrue(callable(getattr(self.controller,'_work',None)))
+        class Service:
+            def work(self,**kw):return {'rows':[],'settings':dict(DEFAULTS),'profiles':[]}
+        class Engine:
+            runs=SimpleNamespace(list=lambda:[])
+            def tick(self):return {'state':'IDLE'}
+        self.controller.service=Service();self.controller.activation=Engine()
+        model=self.controller._work()
+        self.assertEqual(model['activation_runs'],[])
+        self.assertEqual(model['activation_operation']['state'],'IDLE')
+
+    def test_workspace_read_is_queued_and_does_not_store_secret_in_model(self):
+        self.assertTrue(callable(getattr(self.controller,'read_workspace',None)))
+        self.controller.read_workspace('ws_test','SENTINEL_SECRET')
+        self.assertEqual(len(self.host.jobs),1)
+        self.assertEqual(self.host.jobs[0][0],'workspace-directory')
+        self.assertNotIn('SENTINEL_SECRET',str(self.controller.model))
+
+    def test_workspace_read_is_blocked_after_close(self):
+        self.assertTrue(callable(getattr(self.controller,'read_workspace',None)))
+        self.controller.close();self.controller.read_workspace('ws_test','SENTINEL_SECRET')
+        self.assertEqual(self.host.jobs,[])
+
 if __name__=='__main__':unittest.main()

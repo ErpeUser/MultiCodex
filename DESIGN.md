@@ -40,7 +40,8 @@ in a separate history window. Progress bars mean **consumed**, never remaining.
 Unknown values have no invented bar. Expired historical resets retain the old
 consumption and explicitly require verification.
 
-The settings extension enables only read-only quota monitoring. Automatic
+The initial settings extension enabled only read-only quota monitoring. The
+following paragraph records that first slice; see the continuation below. Automatic
 profile activation and workspace administration are visibly unavailable, not
 silently simulated. Initial loading is not rendered as an empty account list.
 
@@ -55,3 +56,17 @@ shell, all existing screens, Figma editing and Windows/DPI acceptance remain
 unverified. See [implementation](docs/quota-implementation.md),
 [verification](docs/quota-verification.md) and
 [design review](.better-design/app-review.md).
+
+
+## Explicit profile starts and workspace visibility
+
+The Usage page gains an exact-account start queue below quota history. Keep its
+scope visible: no automatic account rotation, no closing existing windows, and
+waiting means unconfirmed capacity. Selection, pending, paused, recovery and
+verified-process-binding states use text, not color alone. Administrative member
+visibility belongs to Diagnostics and is read-only; the key input is masked and
+cleared after submission. No invented role/seat fields or implied authorization.
+Reuse current typography, sea-glass accent and dark/light surfaces. Reuse
+QuotaSettingsPanel and update its capability note at the integration boundary.
+Real Linux Tk component captures cover both themes and a narrow queue layout.
+They do not certify the complete shell, Windows DPI, native focus or accessibility.

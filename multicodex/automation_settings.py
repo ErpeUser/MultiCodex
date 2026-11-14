@@ -31,10 +31,6 @@ def validate_settings(data):
     for name in ('enabled','automatic_activation_enabled'):
         if type(out[name]) is not bool:
             raise SettingsError()
-    if out['automatic_activation_enabled']:
-        # A running process is not proof of the desktop's live workspace identity.
-        # Keep this unavailable until the native verifier/capability is implemented.
-        raise SettingsError('ACTIVATION_UNSUPPORTED')
     for name, minimum, maximum in (('poll_interval_seconds',30,3600),('maximum_retries',1,10),
             ('cooldown_seconds',30,86400),('max_age_seconds',30,86400)):
         if type(out[name]) is not int or not minimum <= out[name] <= maximum:

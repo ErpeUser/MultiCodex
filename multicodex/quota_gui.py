@@ -6,6 +6,10 @@ import threading
 from .automation_settings import DEFAULTS
 from .quota_service import QuotaService
 from .quota_ui import QuotaPanel, QuotaSettingsPanel
+from .activation_ui import ActivationPanel
+from .profile_activation import ProfileActivation
+from .workspace_ui import WorkspacePanel
+from .workspace_provider import WorkspaceDirectory
 from .quota_view import summarize_rows
 
 
@@ -16,6 +20,11 @@ class QuotaGuiController:
         self.application=host.services
         self.cancel=threading.Event()
         self.service=None
+        self.activation=None
+        self.activation_panel=None
+        self.workspace_panel=None
+        self.workspace_model=None
+        self.workspace_error=None
         self.ready=False
         self.foreground=False
         self.error_message=None
@@ -30,6 +39,35 @@ class QuotaGuiController:
         if self.service is None:
             self.service=QuotaService(self.root,self.application,cancel=self.cancel)
         return self.service
+
+    def _get_activation(self):
+        if self.activation is None:
+            self.activation=ProfileActivation(self.root,self._get_service(),self.application)
+        return self.activation
+
+    def _work(self,force_key=None,*,execute=True):
+        model=self._get_service().work(force_key=force_key)
+        engine=self._get_activation()
+        model['activation_operation']=engine.tick() if execute else {'state':'IDLE'}
+        model['activation_runs']=engine.runs.list()
+        return model
+
+    def enqueue_activation(self,key):
+        if self.host.closing or self.host.mutating or self.cancel.is_set():return
+        def work():
+            self._get_activation().request(key)
+            return self._work()
+        self._queue(work,self._loaded,foreground=True)
+
+    def activation_action(self,key,action):
+        if action not in {'cancel','recover','resume'} or self.host.closing or self.host.mutating or self.cancel.is_set():return
+        def work():
+            engine=self._get_activation()
+            if action=='cancel':engine.runs.cancel(key,now=int(engine.clock()))
+            elif action=='recover':engine.recover(key)
+            else:engine.resume(key)
+            return self._work(execute=False)
+        self._queue(work,self._loaded,foreground=True)
 
     @staticmethod
     def _alive(widget):
@@ -47,7 +85,7 @@ class QuotaGuiController:
 
     def refresh(self,*,force_key=None):
         if self.host.closing or self.host.mutating or self.cancel.is_set():return False
-        accepted=self._queue(lambda:self._get_service().work(force_key=force_key),
+        accepted=self._queue(lambda:self._work(force_key=force_key),
             self._loaded,foreground=force_key is not None)
         if force_key is not None:
             self.host._set_status('Quota-Abfrage angefordert.' if accepted else 'Eine Quota-Aktion l\u00e4uft bereits. Bitte danach erneut pr\u00fcfen.')
@@ -59,12 +97,14 @@ class QuotaGuiController:
         was_ready=self.ready
         self.model=model;self.ready=True;self.error_message=None
         if self._alive(self.panel):self.panel.set_model(model)
+        if self._alive(self.activation_panel):self.activation_panel.set_model(model)
+        if self._alive(self.settings_panel):self.settings_panel.model=model
         if self._alive(self.summary_label):self.summary_label.configure(text=self._summary_text())
         if not was_ready and self.host.page in ('Settings','Usage'):self.host._render()
 
     def _failed(self,error):
         self.foreground=False
-        self.error_message='Quota-Aktion nicht abgeschlossen. Historische Daten bleiben erhalten; Speicher, Einstellungen und Codex-Verbindung pr\u00fcfen.'
+        self.error_message='Aktion nicht abgeschlossen. Historische Daten bleiben erhalten; Quota-Verbindung und Startwarteschlange pr\u00fcfen.'
         self.host._set_status(self.error_message)
         self.model=deepcopy(self.model)
         for row in self.model['rows']:
@@ -82,6 +122,11 @@ class QuotaGuiController:
             on_refresh=lambda key:self.refresh(force_key=key),on_history=self.history)
         self.panel.pack(fill='both',expand=True,padx=7,pady=(6,14))
         self.panel.set_model(self.model)
+        self.activation_panel=ActivationPanel(self.host.page_frame,theme=self.host.theme_name,
+            on_enqueue=self.enqueue_activation,on_action=self.activation_action,
+            on_enabled=lambda enabled:self.save_settings({'automatic_activation_enabled':enabled}))
+        self.activation_panel.pack(fill='both',expand=True,padx=7,pady=(6,14))
+        self.activation_panel.set_model(self.model)
         if self.error_message:
             card=self.host._panel('Quota-Pr\u00fcfung erforderlich')
             self.host._line(card,self.error_message)
@@ -102,6 +147,7 @@ class QuotaGuiController:
         self.settings_panel=QuotaSettingsPanel(self.host.page_frame,theme=self.host.theme_name,
             model=self.model,on_save=self.save_settings)
         self.settings_panel.pack(fill='x',padx=7,pady=(6,14))
+        self.settings_panel.note.configure(text='Profilstarts werden unter Nutzung expliziter Freigaben vorgemerkt. Laufende Instanzen bleiben offen. Keine Konto- oder Seat-Rotation.')
         if not self.ready:
             self.settings_panel.save_button.configure(state='disabled')
             self.settings_panel.message.configure(text='Quota-Einstellungen werden noch geladen.')
@@ -110,7 +156,7 @@ class QuotaGuiController:
         if self.host.closing or self.host.mutating:return
         def work():
             service=self._get_service();service.save_settings(changes)
-            return service.work()
+            return self._work(execute=False)
         def saved(model):
             self._loaded(model)
             self.host._set_status('Quota-Monitoring gespeichert. Keine Konto- oder Workspace-Mitgliedschaft ge\u00e4ndert.')
@@ -125,13 +171,33 @@ class QuotaGuiController:
         accepted=self._queue(lambda:self._get_service().history(key,offset=offset),loaded,foreground=True)
         if not accepted:self.host._set_status('Eine Quota-Aktion l\u00e4uft; Historie danach erneut \u00f6ffnen.')
 
+    def read_workspace(self,workspace_id,key):
+        if self.host.closing or self.host.mutating or self.cancel.is_set():return
+        def work():
+            return WorkspaceDirectory().read_members(workspace_id,key,cancel=self.cancel)
+        def loaded(model):
+            if self.host.closing:return
+            self.workspace_model=model;self.workspace_error=None
+            if self._alive(self.workspace_panel):self.workspace_panel.set_model(model)
+        def failed(error):
+            if self.host.closing:return
+            self.workspace_error=getattr(error,'code','UNAVAILABLE')
+            if self._alive(self.workspace_panel):self.workspace_panel.set_error(self.workspace_error)
+            self.host._set_status('Workspace-Abfrage nicht abgeschlossen. Keine Mitgliedschaft geaendert.')
+        accepted=self.host._submit('workspace-directory',work,loaded,error_callback=failed)
+        if not accepted:self.host._set_status('Eine andere Workspace-Abfrage laeuft bereits.')
+
     def diagnostics(self):
         card=self.host._panel('Quota-Speicher und Automatisierung')
         self.host._line(card,self.error_message or 'Quota-Historie liegt getrennt von den Anmeldedaten in quota-history/quota.sqlite3.',muted=True)
-        self.host._line(card,'Mitgliederverwaltung und automatischer Profilwechsel sind nicht freigeschaltet: Es fehlen eine konfigurierte offizielle Verwaltungsschnittstelle und die native Desktop-Identit\u00e4tspr\u00fcfung.',muted=True)
+        self.host._line(card,'Profilstarts werden unter Nutzung expliziter Freigaben vorgemerkt. Die Startwarteschlange wechselt niemals bei erschöpftem Limit zu anderen Konten. Workspace-Verwaltung ist davon getrennt.',muted=True)
         for issue in self.model.get('issues',[]):
             self.host._line(card,issue['profile']+': Sitzungsmetadaten momentan nicht verf\u00fcgbar.')
         if self.ready:self.host._actions(card,[('Quota-Sicherung erstellen',self.backup)])
+        self.workspace_panel=WorkspacePanel(self.host.page_frame,theme=self.host.theme_name,on_read=self.read_workspace)
+        self.workspace_panel.pack(fill='both',expand=True,padx=7,pady=(6,14))
+        if self.workspace_model is not None:self.workspace_panel.set_model(self.workspace_model)
+        if self.workspace_error:self.workspace_panel.set_error(self.workspace_error)
 
     def backup(self):
         if self.host.closing:return

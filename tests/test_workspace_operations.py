@@ -77,6 +77,16 @@ class OperationTests(unittest.TestCase):
     def test_account_email_must_match_remote_member(self):
         wrong=self.quota.register(profile_id='Wrong',session_id='default',email='other@example.com',workspace_id='w',now=900)
         with self.assertRaises(OperationError):self.prepare(account_key=wrong)
+
+    def test_provider_account_id_must_match_local_identity(self):
+        account=self.quota.register(profile_id='Identified',session_id='default',
+                                    email='a@example.com',account_id='provider-b',
+                                    workspace_id='w',now=900)
+        self.provider.users['user-a']['account_id']='provider-a'
+        with self.assertRaises(OperationError) as error:
+            self.prepare(account_key=account)
+        self.assertEqual(error.exception.code,'ACCOUNT_MISMATCH')
+        self.assertEqual(self.provider.writes,[])
     def test_known_other_workspace_is_not_relabelled(self):
         wrong=self.quota.register(profile_id='Wrong',session_id='default',email='a@example.com',workspace_id='other',now=900)
         with self.assertRaises(OperationError):self.prepare(account_key=wrong)

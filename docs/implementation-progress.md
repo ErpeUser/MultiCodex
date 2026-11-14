@@ -1,102 +1,216 @@
 # MultiCodex implementation progress
 
-Branch: `feature/quota-history-monitoring-20261114`
-Repository: `ErpeUser/MultiCodex`
-Execution started: 2026-11-14 (Europe/Vienna)
+- Repository: `ErpeUser/MultiCodex` (private)
+- Branch: `feature/quota-history-monitoring-20261114`
+- Audit parent HEAD: `db7a6858d80f64f16d0c9883bd7382ccbcb23b8e` (verified via GitHub branch endpoint).
+- Machine-readable register: [`docs/implementation-status.json`](implementation-status.json).
 
-This log records only checks actually performed. A remote, Windows, OAuth, Figma, or installer result is never marked successful without evidence from that environment.
+This is the exact 157-step execution record from the attached contract. Historical results are labelled; no CI, Windows, OAuth, Figma, admin-mutation, or release acceptance is claimed without evidence.
 
-## Steps 001–008 / 157 — Repository and baseline
+## Status counts
 
-- Status: **complete where executable; baseline tests blocked**
-- The private repository and required branch were verified. Starting HEAD was `b6eb61d1c1415c407c9a6018227a4d3f5ef0b859`.
-- Project guardrails and design/security/release documents were read; the recursive source tree and both workflows were inspected.
-- The workspace cannot clone the private repo with Git credentials, so this session does not claim a full local Python/Node/GUI baseline.
-- Starting workflow run `43634563144` and subsequent triggered runs failed before any job step ran (`runner_id: 0`, empty steps). This remains an external runner/account blocker.
-- Added and pushed `docs/implementation-progress.md`.
+| Status | Count |
+|---|---:|
+| `BEREITS_VERIFIZIERT` | 2 |
+| `IMPLEMENTIERT_ABNAHME_OFFEN` | 128 |
+| `BLOCKIERT_EXTERN` | 26 |
+| `OFFEN` | 1 |
 
-## Steps 009–020 / 157 — Account and workspace identity safety
+The counts sum to 157. Full required fields are in `implementation-status.json`.
 
-- Status: **complete for the reviewed behaviors**
-- Existing code keeps account identity, workspace membership, seat, auth, and quota state separate; unknown workspace context stays unknown.
-- Existing guards cover workspace filters, multi-workspace catalogue keys, context revisions during probes, removal snapshots, seat-change snapshots, access readback, and unknown-scope handling.
-- Added provider account-ID allowlisting and fail-closed matching against the local quota account before a workspace mutation can proceed.
-- Added mandatory snapshot preflight for role updates.
-- Targeted extracted-module suite: `PYTHONPATH=.:tests python -m unittest test_workspace_operations -v` → **36 passed**.
-- Implementation commits: `b9394d5af4d75ca19673166013b1453eb6b052e4`, `f335ae28c2d278d75e2b2975cb3c0e7b525bbc27`, `cc4216ec52e96697b2c189329e09ed95d66deca6`, `d8f1d72d0c2c147559b2841bcc45f37eeba9ae32`.
+## Steps 001–157
 
-## Step 021 / 157 — Re-verification after workspace restoration
+| ID | Titel | Status | Checked source |
+|---:|---|---|---|
+| 001 | GitHub-Basis prüfen | BEREITS_VERIFIZIERT | GitHub metadata; AGENTS.md; workflows |
+| 002 | Projektregeln auswerten | BEREITS_VERIFIZIERT | GitHub metadata; AGENTS.md; workflows |
+| 003 | Bestehende Funktionen inventarisieren | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 004 | Vollständige Testsuite ausführen | BLOCKIERT_EXTERN | quota*.py; tests/test_quota*.py |
+| 005 | GitHub-Actions-Fehler untersuchen | BLOCKIERT_EXTERN | quota*.py; tests/test_quota*.py |
+| 006 | CI-Konfiguration korrigieren | BLOCKIERT_EXTERN | quota*.py; tests/test_quota*.py |
+| 007 | Abhängigkeiten absichern | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 008 | Fortschrittsprotokoll im Repository | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 009 | Account-ID statt E-Mail als Primäridentität | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 010 | Workspace-Zuordnung absichern | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 011 | Fehlende Workspace-Filter absichern | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 012 | Seat-Berechtigung separat prüfen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 013 | Multi-Workspace-Accounts absichern | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 014 | Kontextänderungen während API-Aufrufen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 015 | Snapshot vor Mitgliederentfernung | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 016 | Snapshot vor Seat-Entzug | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 017 | Snapshot vor Rollenentzug | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 018 | Snapshot-Identität validieren | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 019 | Unbekannten Workspace nicht per E-Mail übernehmen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 020 | Externe Statusänderungen berücksichtigen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 021 | Nach Wiederaufnahme verifizieren | OFFEN | quota*.py; tests/test_quota*.py |
+| 022 | Protokollversion erkennen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 023 | Fünf-Stunden-Fenster korrekt zuordnen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 024 | Wochenfenster korrekt zuordnen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 025 | Fehlende Zeitfenster | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 026 | Mehrere Quota-Buckets | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 027 | Codex-Bucket erkennen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 028 | Zusätzliche Buckets behandeln | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 029 | Rate-Limit-Gründe korrigieren | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 030 | `ordinaryUsageAllowed` | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 031 | Spend-Control-Limits | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 032 | Reset-Credits | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 033 | Credits historisieren | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 034 | Planwechsel erkennen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 035 | Seat-Wechsel erkennen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 036 | Fehlerhafte Providerwerte validieren | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 037 | Vollständige Protokolltests | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 038 | Quota-Datenmodell vervollständigen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 039 | Account-Modell vervollständigen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 040 | Quota-Historie erhalten | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 041 | Separate Reset-Zeitpunkte | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 042 | Offline-Reset-Prognose | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 043 | Reset-Zustände ergänzen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 044 | Neue Daten korrigieren Prognosen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 045 | SQLite-Schemamigration | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 046 | Sichere Backups | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 047 | Beschädigte Daten wiederherstellen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 048 | Parallele Speicherzugriffe | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 049 | Bestehenden Quota-Monitor prüfen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 050 | Prüfintervalle | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 051 | Warnschwellen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 052 | Beide Limits berücksichtigen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 053 | Aktuelle Daten erzwingen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 054 | Backoff und Retry | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 055 | Fehlende Berechtigung | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 056 | Authentifizierungsfehler | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 057 | Monitoring nach Neustart | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 058 | In-App-Benachrichtigungen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 059 | Windows-Benachrichtigungen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 060 | Benachrichtigungseinstellungen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 061 | Monitoring-Tests vervollständigen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
+| 062 | Kandidatenmodell prüfen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 063 | Workspace und Seat in Kandidatenprüfung | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 064 | Beide Quota-Fenster berücksichtigen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 065 | Provider-Sperren berücksichtigen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 066 | Kandidaten deterministisch sortieren | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 067 | Automatische Kandidatenauswahl | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 068 | Keine Kandidaten vorhanden | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 069 | Reset-Zeitpunkt erreicht | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 070 | Bestehende Zielinstanz erkennen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 071 | Passende Instanz wiederverwenden | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 072 | Fenster gezielt fokussieren | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 073 | Zielinstanz sicher starten | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 074 | Andere Instanzen schützen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 075 | Laufende Arbeiten schützen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 076 | Sessionidentität prüfen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 077 | Live-Instanzzuordnung stärken | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 078 | Falsche Identität erkennen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 079 | Aktivierungsjournal vervollständigen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 080 | Zustandmaschine vervollständigen | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 081 | Crash-Recovery | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 082 | Doppelte Aktionen verhindern | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 083 | Automatik vollständig abschaltbar | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 084 | Profilmanagement-End-to-End-Tests | IMPLEMENTIERT_ABNAHME_OFFEN | profile_activation.py; controller.py; tests/test_profile_activation.py |
+| 085 | Aktuelle Admin-Dokumentation prüfen | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 086 | Aktuellen OpenAPI-Vertrag laden | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 087 | Admin-Fähigkeiten dynamisch erkennen | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 088 | Business-Kompatibilität prüfen | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 089 | Enterprise-/Edu-Unterstützung | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 090 | SCIM-Kompatibilität | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 091 | Mitgliederverzeichnis | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 092 | Einladungsverzeichnis | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 093 | Rolleninformationen | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 094 | Seat-Informationen | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 095 | Seat-Verfügbarkeit | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 096 | Workspace-Account-Zuordnung | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 097 | Einladung erstellen | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 098 | Einladung erneut senden | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 099 | Einladung widerrufen | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 100 | Einladung annehmen lassen | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 101 | Mitgliedschaft nach Annahme prüfen | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 102 | Rolle ändern | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 103 | Seat ändern | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 104 | Mitglied entfernen | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 105 | Mitglied wieder aufnehmen | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 106 | Codex-Zugang nach Wiederaufnahme | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 107 | Zusammenhängenden Verwaltungsworkflow | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 108 | Owner-Schutz | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 109 | Administrative Vorschau | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 110 | Exakte Freigabe | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 111 | Idempotenz und Doppelaktionsschutz | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 112 | Readback und unbekannte Ergebnisse | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 113 | Vollständiges Operationsjournal | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
+| 114 | Workspace-Gesamttests | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 115 | Gemeinsame GUI-Komponenten | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 116 | Dashboard: Accountzahlen | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 117 | Dashboard: Instanzen | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 118 | Dashboard: Workspace | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 119 | Dashboard: Quotas | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 120 | Dashboard: Resettermine | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 121 | Dashboard: Aufgaben und Fehler | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 122 | Accounttabelle vervollständigen | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 123 | Accounttabelle: Quotas | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 124 | Accounttabelle: Bedienung | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 125 | Accountaktionen | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 126 | Instanzverwaltung | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 127 | Quota-Übersicht | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 128 | Quota-Historie | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 129 | Zusätzliche Quotas und Credits | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 130 | Startwarteschlange | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 131 | Automatik-Einstellungen | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 132 | Idle-Policy | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 133 | Benachrichtigungseinstellungen | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 134 | Workspace-Administrations-GUI | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 135 | Diagnose | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 136 | Recovery-GUI | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 137 | Fehler-/Leer-/Ladezustände | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 138 | GUI-Regressionstests | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
+| 139 | Bestehendes Design analysieren | IMPLEMENTIERT_ABNAHME_OFFEN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 140 | Better Design verwenden | IMPLEMENTIERT_ABNAHME_OFFEN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 141 | awesome-design-md verwenden | IMPLEMENTIERT_ABNAHME_OFFEN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 142 | Aktuelle Screenshots recherchieren | BLOCKIERT_EXTERN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 143 | Design-Tokens vereinheitlichen | IMPLEMENTIERT_ABNAHME_OFFEN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 144 | Dark Mode fertigstellen | IMPLEMENTIERT_ABNAHME_OFFEN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 145 | Light Mode fertigstellen | IMPLEMENTIERT_ABNAHME_OFFEN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 146 | Tastatur und Accessibility | IMPLEMENTIERT_ABNAHME_OFFEN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 147 | Skalierung und lange Inhalte | IMPLEMENTIERT_ABNAHME_OFFEN | DESIGN.md; UX-CONTRACT.md; .better-design/* |
+| 148 | Vorhandene Figma-Datei öffnen | BLOCKIERT_EXTERN | design/figma/*; tests/test_figma_package.py |
+| 149 | Editierbare Figma-Ansichten | BLOCKIERT_EXTERN | design/figma/*; tests/test_figma_package.py |
+| 150 | Figma-Zustandsvarianten | BLOCKIERT_EXTERN | design/figma/*; tests/test_figma_package.py |
+| 151 | Reales Figma-Ergebnis verifizieren | BLOCKIERT_EXTERN | design/figma/*; tests/test_figma_package.py |
+| 152 | Figma und echte GUI vergleichen | BLOCKIERT_EXTERN | design/figma/*; tests/test_figma_package.py |
+| 153 | Vollständige Windows-Tests | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |
+| 154 | Native GUI-Abnahme | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |
+| 155 | Windows-DPI-Matrix | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |
+| 156 | Echter Login- und Multi-Instanz-Test | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |
+| 157 | Installer, CI und endgültige Verifikation | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |
 
-- Status: **open**
-- Access/seat changes invalidate old observations and the monitor supports forced refresh.
-- A single end-to-end coordinator path that automatically performs plan, seat, session, and live-quota verification immediately after confirmed restoration still needs a focused contract and test.
-- No automatic membership or quota mutation is being added until that contract is explicit.
+## Pflichtfehlerfälle (23)
 
-## Steps 022–031 / 157 — Quota protocol selection and denial semantics
+| # | Fehlerfall | Testnachweis | Status |
+|---:|---|---|---|
+| 001 | Codex app-server unreachable | historical targeted test: test_quota_monitor.MonitorTests.test_backoff_and_retry_exhaustion_are_persistent | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 002 | Five-hour or weekly limit missing | historical targeted test: test_quota.QuotaViewTests.test_unknown_window_blocks_but_explicit_null_is_not_invented | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 003 | Reset timestamp missing | historical targeted test: test_quota.QuotaViewTests.test_missing_reset_requires_verification | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 004 | Provider response damaged or stale | historical quota/provider test suites documented in docs/continuation-verification.md | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 005 | Workspace access removed | historical targeted test: test_removed_accounts_keep_snapshot_without_network_probes | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 006 | Session or cookies invalid | historical targeted monitor/sign-in tests; real OAuth not run | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 007 | Official login failed | historical sign-in/activation tests; real OAuth not run | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 008 | Wrong account identity | historical targeted test: test_wrong_identity_does_not_persist_quota | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 009 | Seat missing or membership unconfirmed | historical workspace tests; external directory not exercised | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 010 | Invitation failed or expired | no current executable admin mutation test; mutation gate remains open | BLOCKIERT_EXTERN |
+| 011 | Role change not allowed | historical admin contract/security tests; no live admin mutation | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 012 | Sole owner affected | historical security test; external acceptance open | BLOCKIERT_EXTERN |
+| 013 | Target instance does not start | historical activation/process tests; native Windows start not run | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 014 | Origin instance cannot be safely stopped | historical process identity tests; native acceptance open | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 015 | Multiple parallel instances | historical process lifecycle tests; three real instances not run | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 016 | Concurrent automation actions | historical lock/activation tests | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 017 | Crash during storage or switch | historical recovery tests; native crash injection not run | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 018 | Corrupted quota history | historical quota store/restore tests; current full suite not runnable | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 019 | Reset timestamp changes | historical quota tests | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 020 | Restoration with a different seat | historical workspace/quota tests; external seat change not run | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 021 | Quota remains exhausted after expected reset | historical test: test_reset_boundary_is_forecast_and_keeps_last_usage | IMPLEMENTIERT_ABNAHME_OFFEN |
+| 022 | Unexpected provider reset | historical provider/quota tests; live provider not run | BLOCKIERT_EXTERN |
+| 023 | Backend and GUI state disagree | historical UI/service tests; full application GUI acceptance open | BLOCKIERT_EXTERN |
 
-- Status: **reviewed and covered by existing tests**
-- The adapter handles legacy and multi-bucket views, selects only the `codex` bucket, preserves unrelated-bucket evidence, keeps independent durations, distinguishes omitted from explicit-null windows, and fails closed on ambiguous or mismatched buckets.
-- Existing tests cover ordinary-usage permission, spend-control denial, provider denial values, identity matching, malformed numeric values, and mid-call identity changes.
+## Current external blockers
 
-## Steps 032–033 / 157 — Reset credits and history
-
-- Status: **complete for the supported app-server shape**
-- Added strict sanitization for official `rateLimitResetCredits` metadata and retained it in quota snapshots without storing credentials or raw provider JSON.
-- New tests cover provider sanitization and SQLite history retention.
-- Commits: `00e7d796dae9e90e6b11261383a917ecc3fcdaf2`, `e3770749a9250b515929788d10247723623827cc`.
-
-## Steps 034–037 / 157 — Plan/seat transitions and malformed data
-
-- Status: **reviewed and covered by existing tests**
-- Plan and seat changes invalidate old observations; late observations do not overwrite newer context.
-- NaN, infinities, booleans-as-numbers, negative values, unsafe IDs, invalid timestamps, and unknown provider denial strings are rejected or reduced to fixed safe states.
-- Full official-version fixture coverage remains dependent on the blocked CI/full-checkout path.
-
-## Steps 038–044 / 157 — Snapshot model, account model, history, and reset semantics
-
-- Status: **complete for the implemented local model**
-- New snapshots contain the required identity, independent primary/secondary windows, observed timestamp, source, access state, capture reason, schema version, capture freshness, and verification state; older records remain readable through optional defaults.
-- Account records now expose `active_session_id` while retaining the existing `session_id` compatibility field.
-- Append-only history survives logout/access changes, stores independent reset times, preserves offline forecasts without moving timestamps, and lets later official snapshots replace only the current forecast view.
-- Targeted extracted-module tests covering these behaviors are green.
-
-## Step 045 / 157 — SQLite schema migration
-
-- Status: **complete**
-- SQLite user_version 1 migrates transactionally to version 2 after validating required tables; new databases start at version 2.
-- The migration changes only the schema marker because the new fields are backward-compatible JSON fields; no history rows are rewritten or dropped.
-- Regression: `test_schema_v1_migrates_without_losing_history`.
-
-## Step 046 / 157 — Safe backups
-
-- Status: **complete for backup creation**
-- Existing backup code uses a consistent read transaction, a temporary file, and atomic replacement without overwriting a damaged source.
-- Existing tests cover valid backups, corruption, missing originals, and close hygiene.
-
-## Step 047 / 157 — Controlled restoration from backup
-
-- Status: **complete for the tested local model**
-- Added `QuotaStore.restore_from_backup(backup_path)`, which requires an explicit same-store backup path, verifies it read-only with SQLite integrity/schema checks, stages the copy, preserves the current database in a unique `quota.damaged-<id>.sqlite3` file, and installs the verified copy atomically.
-- Invalid or omitted backups leave the active database untouched and create no preservation artifact.
-- Test-first regression: `tests/test_quota_restore.py`; extracted suite is green with **117 tests**, and `python -m compileall -q multicodex tests` passes.
-- Commits: `61c7b8343faca324053b2a63fed5b9c9669c36e7`, `ae687d00ecfd8093284d57ca70d168f729cd05e4`.
-
-## Step 048 / 157 — Concurrent storage access
-
-- Status: **complete for the tested local model**
-- SQLite transactions, timeout handling, filesystem safety checks, and existing concurrent-writer tests cover multiple store instances and history preservation.
-
-## Current remote state
-
-- Current remote HEAD after the latest implementation commit: `ae687d00ecfd8093284d57ca70d168f729cd05e4`.
-- The latest feature and Windows workflow runs (`43644097044`, `43644097097`) completed with `failure` before job steps ran; no green CI result is claimed.
-- CI remains unverified because the triggered GitHub jobs fail before starting steps.
-
-## Open blockers and next work
-
-- Step 021 post-restoration end-to-end verification remains open.
-- Current-session full checkout/test execution requires a credentialed clone or equivalent authorized source export.
-- GitHub Actions runner/account availability must be resolved before CI can provide a green result.
-- Steps 049 onward (monitoring, activation, administration, GUI, design, Windows/OAuth/installer acceptance) remain to be executed and verified.
-- Windows, OAuth/keyring, multi-instance, Figma, DPI, and installer acceptance remain unverified exactly as documented in `docs/verification.md`.
-
+- Full credentialed checkout and current full Python/Node/GUI rerun unavailable.
+- Latest feature run `43644152559` and Windows run `43644152564` failed before job steps with `runner_id: 0`; publish job skipped.
+- Windows DPI/installer, OAuth/re-login, three-instance, Figma round-trip, and external workspace-admin mutation evidence remain open.
+- Step 021 is the next technical slice once an authorized checkout or equivalent source export is available.

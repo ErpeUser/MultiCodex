@@ -23,6 +23,8 @@ from .settings import SettingsStore
 from .ui_tokens import THEMES, PADDING, NAV_WIDTH
 from . import __version__
 from .quota_gui import QuotaGuiController
+from .workspace_admin_gui import WorkspaceAdminGuiController
+from .desktop_views import ActionTable, MetricStrip, dashboard_metrics, profile_records, session_records
 
 PAGES = ['Overview', 'Accounts', 'Instances', 'Usage', 'Diagnostics', 'Settings']
 LABELS = dict(zip(PAGES, ['\u00dcbersicht', 'Konten', 'Instanzen', 'Nutzung', 'Diagnose', 'Einstellungen']))
@@ -66,11 +68,22 @@ class MultiCodexApp(ctk.CTk):
         self._refresh_id = None
         self._progress_running = False
         self.quota = QuotaGuiController(self, root)
+        self.admin = WorkspaceAdminGuiController(self, root)
+        self.account_section = 'profiles'
+        self.usage_section = 'history'
+        self.settings_section = 'general'
+        self.diagnostics_section = 'runtime'
+        self.snapshot_ready = False
+        self.table_states = {}
+        self.data_tables = {}
+        self.metrics = None
         self._build_shell()
         self._render()
         self.protocol('WM_DELETE_WINDOW', self._close)
         self.bind('<Control-r>', lambda event: self._refresh(include_pool=True))
         self.bind('<Escape>', lambda event: self._cancel_login())
+        for index, page in enumerate(PAGES, 1):
+            self.bind('<Control-Key-' + str(index) + '>', lambda event, page=page: self._set_page(page))
         # Tk font/widget cycles can otherwise be collected during a worker's
         # allocations; their finalizers call Tcl and must stay on this thread.
         self._gc_was_enabled = gc.isenabled()
@@ -89,6 +102,9 @@ class MultiCodexApp(ctk.CTk):
             self._gc_id = self.after(1000, self._collect_garbage)
 
     def destroy(self):
+        admin = self.__dict__.get('admin')
+        if admin is not None:
+            admin.close()
         quota = self.__dict__.get('quota')
         if quota is not None:
             quota.close()
@@ -144,7 +160,7 @@ class MultiCodexApp(ctk.CTk):
         self._keyboard_button(self.primary)
         self.sign_in_button = ctk.CTkButton(header, text='Anmelden', width=110, height=34,
             fg_color=p['selected'], text_color=p['text'], hover_color=p['border'],
-            command=lambda: self._set_page('Accounts'))
+            command=lambda: self._set_account_section('profiles'))
         self.sign_in_button.grid(row=2, column=1, sticky='e', pady=(8, 0))
         self._keyboard_button(self.sign_in_button)
         self.page_frame = ctk.CTkScrollableFrame(self.right, fg_color='transparent')
@@ -176,6 +192,9 @@ class MultiCodexApp(ctk.CTk):
             self._render()
 
     def _render(self):
+        self._remember_tables()
+        self.data_tables = {}
+        self.metrics = None
         self.action_buttons = []
         titles = {**LABELS, 'Overview': 'Konten und Instanzen', 'Usage': 'Nutzungslimits'}
         subtitles = {
@@ -184,7 +203,7 @@ class MultiCodexApp(ctk.CTk):
             'Instances': 'Start und Ende werden anhand des konkreten Profilpfads gepr\u00fcft.',
             'Usage': 'Live-Messungen, gespeicherte Historie und getrennte Reset-Zeiten.',
             'Diagnostics': 'Fehlerzust\u00e4nde und offene Wiederherstellungen, ohne Zugangsdaten.',
-            'Settings': 'Darstellung und lokaler Speicherort.',
+            'Settings': 'Darstellung, Monitoring und lokaler Speicher. Keine Zugangsdaten in Einstellungen.',
         }
         self.header_title.configure(text=titles[self.page])
         self.header_subtitle.configure(text=subtitles[self.page])
@@ -227,41 +246,68 @@ class MultiCodexApp(ctk.CTk):
             self.action_buttons.append(button)
 
     def _page_overview(self):
-        profiles = self.view['profiles']
-        unknown = any(v['running'] is None for v in self.view['processes'].values())
-        running = sum(v['running'] is True for v in self.view['processes'].values())
-        total_sessions = sum(len(v) for v in self.view['sessions'].values())
-        card = self._panel('Lokaler Status')
-        self._line(card, f'{len(profiles)} Profile   |   {"?" if unknown else running} laufend   |   {total_sessions} gespeicherte Anmeldungen')
+        self.metrics = MetricStrip(self.page_frame,
+            dashboard_metrics(self.view, self.quota.model, loaded=self.snapshot_ready), theme=self.theme_name)
+        self.metrics.pack(fill='x', padx=7, pady=(6, 4))
         if os.name != 'nt':
-            self._line(card, 'Desktop-Instanzen ben\u00f6tigen Windows. Diese Umgebung kann ihre Funktion nicht best\u00e4tigen.', muted=True)
+            card = self._panel('Desktop-Plattform')
+            self._line(card, 'Desktop-Instanzen ben\u00f6tigen Windows. Diese Umgebung best\u00e4tigt nur die Verwaltungsoberfl\u00e4che.', muted=True)
         self.quota.summary()
         self._draw_profiles()
         if self.view['issues']:
             card = self._panel('Pr\u00fcfung erforderlich')
-            self._line(card, 'Mindestens ein Profil oder Prozessstatus ist nicht lesbar. Details unter Diagnose.')
-        if not profiles:
-            card = self._panel('Vorhandene Profile weiterverwenden', 'Bestehende Anmeldungen werden weder kopiert noch gel\u00f6scht.')
-            self._actions(card, [('Profil verkn\u00fcpfen', self._link_profile)])
+            self._line(card, 'Profil- oder Prozessdaten sind teilweise nicht lesbar. Bestehende Daten bleiben erhalten.')
+            self._actions(card, [('Diagnose \u00f6ffnen', lambda: self._set_page('Diagnostics'))])
+        if self.snapshot_ready and not self.view['profiles']:
+            card = self._panel('Erste Instanz einrichten', 'Bestehende Anmeldungen werden weder kopiert noch gel\u00f6scht.')
+            self._actions(card, [('Neue Instanz', self._new_profile), ('Profil verkn\u00fcpfen', self._link_profile)])
 
     def _draw_profiles(self):
-        for profile in self.view['profiles']:
-            process = self.view['processes'].get(profile.name, {})
-            status = {True: 'L\u00e4uft', False: 'Gestoppt', None: 'Unbekannt'}[process.get('running')]
-            recovery = self.view['recovery'].get(profile.name)
-            card = self._panel(profile.name, f'{status}  |  {"Verkn\u00fcpft" if profile.linked else "Verwaltet"}')
-            self._line(card, profile.account_email or ('Anmeldung der Original-App' if profile.linked else 'Keine Kontometadaten best\u00e4tigt'), muted=True)
-            if process.get('pids'):
-                self._line(card, 'Prozess: ' + ', '.join(str(p) for p in process['pids']), muted=True)
-            if recovery:
-                self._line(card, 'Ein unterbrochener Kontowechsel muss zuerst wiederhergestellt werden.')
-                items = [('Wiederherstellen', lambda n=profile.name: self._recover(n)),
-                         ('Stoppen', lambda n=profile.name: self._instance_action(n, 'stop'))]
-            else:
-                items = [('Starten', lambda n=profile.name: self._instance_action(n, 'launch')),
-                         ('Stoppen', lambda n=profile.name: self._instance_action(n, 'stop')),
-                         ('Neu starten', lambda n=profile.name: self._instance_action(n, 'restart'))]
-            self._actions(card, items)
+        self._data_table('profiles', 'Profilstatus',
+            [('profile', 'Profil', 200), ('account', 'Gespeichertes Konto', 250),
+             ('state', 'Status', 150), ('kind', 'Speicherart', 130)],
+            [('launch', 'Starten'), ('stop', 'Stoppen'), ('restart', 'Neu starten'), ('recover', 'Wiederherstellen')],
+            profile_records(self.view))
+
+    def _remember_tables(self):
+        for key, table in self.data_tables.items():
+            if table.winfo_exists():
+                self.table_states[key] = table.get_state()
+
+    def _data_table(self, key, title, columns, actions, rows):
+        table = ActionTable(self.page_frame, title=title, columns=columns, actions=actions,
+            on_action=self._data_action, theme=self.theme_name)
+        table.pack(fill='both', expand=True, padx=7, pady=(6, 16))
+        table.set_rows(rows, loaded=self.snapshot_ready, state=self.table_states.get(key))
+        self.data_tables[key] = table
+        return table
+
+    def _data_action(self, action, row):
+        if self.closing or self.mutating or action not in row.get('actions', ()):
+            return
+        name = row['profile']
+        if action in {'launch', 'stop', 'restart'}:
+            self._instance_action(name, action)
+        elif action == 'recover':
+            self._recover(name)
+        elif action == 'login':
+            self._login(name)
+        elif action == 'reauth':
+            self._login(name, reauthenticate=True)
+        elif action == 'inspect':
+            self._inspect_account(name)
+        elif action == 'switch':
+            self._switch(name, row['session_id'])
+        elif action == 'rename':
+            self._rename(name, row['session_id'])
+
+    def _sync_desktop_data(self):
+        if self.metrics is not None and self.metrics.winfo_exists():
+            self.metrics.set_values(dashboard_metrics(self.view, self.quota.model, loaded=self.snapshot_ready))
+        for key, table in self.data_tables.items():
+            if table.winfo_exists():
+                rows = profile_records(self.view) if key == 'profiles' else session_records(self.view, self.quota.model.get('rows', []))
+                table.set_rows(rows, loaded=self.snapshot_ready)
 
     def _page_instances(self):
         self._draw_profiles()
@@ -273,7 +319,18 @@ class MultiCodexApp(ctk.CTk):
                 self._line(card, f'{found.name}: {found.path}', muted=True)
         self._actions(card, [('Speicherorte pr\u00fcfen', self._discover), ('Profil verkn\u00fcpfen', self._link_profile)])
 
+    def _set_account_section(self, section):
+        if not self.closing and section in {'profiles', 'workspace'}:
+            self.account_section = section
+            self._set_page('Accounts')
+
     def _page_accounts(self):
+        tabs = self._panel('Kontoverwaltung')
+        self._actions(tabs, [('Anmeldungen', lambda: self._set_account_section('profiles')),
+            ('Workspace verwalten', lambda: self._set_account_section('workspace'))])
+        if self.account_section == 'workspace':
+            self.admin.render()
+            return
         if self.login_cancel is not None:
             card = self._panel('Anmeldung: ' + (self.login_profile or 'OpenAI'),
                 'Im offiziellen Browser mit OpenAI anmelden. Die Anmeldung kann hier abgebrochen werden.')
@@ -287,25 +344,18 @@ class MultiCodexApp(ctk.CTk):
             else:
                 self._line(card, 'Die offizielle Anmeldeseite wird vorbereitet ...')
         managed = [p for p in self.view['profiles'] if not p.linked]
-        if not managed:
+        if self.snapshot_ready and not managed:
             card = self._panel('Noch kein verwaltetes Profil')
             self._line(card, 'Eine Instanz erstellen, bevor eine isolierte Anmeldung hinzugef\u00fcgt wird.')
             self._actions(card, [('Neue Instanz', self._new_profile)])
-        for profile in managed:
-            card = self._panel(profile.name, 'Beim Wechsel oder Re-Login startet ausschlie\u00dflich dieses Profil neu.')
-            for session in self.view['sessions'].get(profile.name, []):
-                active = session['id'] == profile.session_id
-                self._line(card, f'{session.get("label") or session["email"]}  |  {"Zugeordnet" if active else "Gespeichert"}')
-                actions = [('Umbenennen', lambda n=profile.name, s=session['id']: self._rename(n, s))]
-                if not active:
-                    actions.insert(0, ('Konto wechseln', lambda n=profile.name, s=session['id']: self._switch(n, s)))
-                self._actions(card, actions)
-            if self.view['recovery'].get(profile.name):
-                self._actions(card, [('Wiederherstellen', lambda n=profile.name: self._recover(n))])
-            else:
-                self._actions(card, [('Mit OpenAI anmelden', lambda n=profile.name: self._login(n)),
-                    ('Erneut anmelden', lambda n=profile.name: self._login(n, reauthenticate=True)),
-                    ('Anmeldung pr\u00fcfen', lambda n=profile.name: self._inspect_account(n))])
+        self._data_table('sessions', 'Gespeicherte Anmeldungen',
+            [('profile', 'Profil', 150), ('email', 'Anmeldung', 230), ('state', 'Zuordnung', 125),
+             ('workspace', 'Workspace', 160), ('five', '5h verwendet', 140),
+             ('weekly', 'Woche verwendet', 140), ('freshness', 'Messstand', 130)],
+            [('login', 'Anmeldung hinzuf\u00fcgen'), ('switch', 'Konto wechseln'),
+             ('reauth', 'Erneut anmelden'), ('inspect', 'Anmeldung pr\u00fcfen'),
+             ('rename', 'Umbenennen'), ('recover', 'Wiederherstellen')],
+            session_records(self.view, self.quota.model.get('rows', [])))
         card = self._panel('Vorhandener Multi-Auth-Pool', 'Nur Bestandsanzeige. Die verschl\u00fcsselte \u00dcbernahme dieser Pool-Konten in einzelne Instanzen ist noch nicht implementiert.')
         if self.pool_rows is None:
             self._line(card, self.pool_error or 'Noch nicht geladen.', muted=True)
@@ -316,9 +366,21 @@ class MultiCodexApp(ctk.CTk):
                 status = 'Ung\u00fcltig markiert' if row.get('invalidated') else 'Deaktiviert' if row.get('enabled') is False else 'Gespeichert, nicht live gepr\u00fcft'
                 self._line(card, f'{row.get("label") or row.get("email") or "Konto"}  |  {status}')
 
+    def _set_usage_section(self, section):
+        if not self.closing and section in {'history', 'queue'}:
+            self.usage_section = section
+            self._set_page('Usage')
+
     def _page_usage(self):
+        card = self._panel('Nutzungsverwaltung')
+        self._actions(card, [('Quota und Verlauf', lambda: self._set_usage_section('history')),
+            ('Startwarteschlange', lambda: self._set_usage_section('queue'))])
         self.quota.render()
-        if any(p.linked for p in self.view['profiles']):
+        if self.quota.ready:
+            hidden = self.quota.activation_panel if self.usage_section == 'history' else self.quota.panel
+            if hidden is not None and hidden.winfo_exists():
+                hidden.pack_forget()
+        if self.usage_section == 'history' and any(p.linked for p in self.view['profiles']):
             self._page_legacy_usage()
 
     def _page_legacy_usage(self):
@@ -331,17 +393,38 @@ class MultiCodexApp(ctk.CTk):
             for text in usage_lines(self.usage_data):
                 self._line(card, text)
 
+    def _set_diagnostics_section(self, section):
+        if not self.closing and section in {'runtime', 'recovery', 'quota'}:
+            self.diagnostics_section = section
+            self._set_page('Diagnostics')
+
     def _page_diagnostics(self):
-        self.quota.diagnostics()
-        card = self._panel('Laufzeit und Abh\u00e4ngigkeiten')
-        if self.health_data is None:
-            self._line(card, 'Noch nicht gepr\u00fcft.', muted=True)
-        else:
-            for key, label in [('serviceReady', 'Lokale Schnittstelle'), ('nodeCompatible', 'Node-Version'), ('upstreamReady', 'Multi-Auth-Modul')]:
-                self._line(card, f'{label}: {"Bereit" if self.health_data.get(key) is True else "Nicht bereit"}')
-        self._actions(card, [('Abh\u00e4ngigkeiten pr\u00fcfen', self._health)])
+        card = self._panel('Pr\u00fcfbereiche', 'Status lesen, gespeicherte Vorg\u00e4nge wiederherstellen oder Quota-Daten sichern.')
+        self._actions(card, [('Runtime', lambda: self._set_diagnostics_section('runtime')),
+            ('Wiederherstellung', lambda: self._set_diagnostics_section('recovery')),
+            ('Quota und Workspace', lambda: self._set_diagnostics_section('quota'))])
+        if self.diagnostics_section == 'quota':
+            self.quota.diagnostics()
+            card = self._panel('Workspace-Aktionen', 'Einladungen und Mitgliedschafts\u00e4nderungen ben\u00f6tigen eine konkrete Vorschau und Freigabe.')
+            self._actions(card, [('Workspace verwalten', lambda: self._set_account_section('workspace'))])
+            return
+        if self.diagnostics_section == 'runtime':
+            card = self._panel('Laufzeit und Abh\u00e4ngigkeiten')
+            if self.health_data is None:
+                self._line(card, 'Noch nicht gepr\u00fcft.', muted=True)
+            else:
+                for key, label in [('serviceReady', 'Lokale Schnittstelle'), ('nodeCompatible', 'Node-Version'), ('upstreamReady', 'Multi-Auth-Modul')]:
+                    value = self.health_data.get(key)
+                    state = 'Bereit' if value is True else 'Nicht bereit' if value is False else 'Unbekannt'
+                    self._line(card, label + ': ' + state)
+            self._actions(card, [('Abh\u00e4ngigkeiten pr\u00fcfen', self._health)])
+            card = self._panel('Kompatibilit\u00e4t')
+            self._line(card, 'Unterst\u00fctzter Erkennungspfad: OpenAI.Codex MSIX, app/ChatGPT.exe. Andere Builds werden nicht erraten. Native Windows-/OAuth-Abnahme ist ein gesonderter Nachweis.', muted=True)
+            return
         card = self._panel('Profile und Wiederherstellung')
-        if not self.view['issues'] and not any(self.view['recovery'].values()):
+        if not self.snapshot_ready:
+            self._line(card, 'Profilstatus wird geladen.', muted=True)
+        elif not self.view['issues'] and not any(self.view['recovery'].values()):
             self._line(card, 'Keine lokalen Metadatenfehler gemeldet. Das ist kein Nachweis g\u00fcltiger Online-Anmeldungen.', muted=True)
         for issue in self.view['issues']:
             self._line(card, f'{issue["name"]}: {issue["error"]}')
@@ -350,15 +433,26 @@ class MultiCodexApp(ctk.CTk):
                 self._actions(card, [(profile.name + ': wiederherstellen', lambda n=profile.name: self._recover(n))])
             if self.view['processes'].get(profile.name, {}).get('running') is True:
                 self._actions(card, [(profile.name + ': Beenden erzwingen', lambda n=profile.name: self._instance_action(n, 'stop', force=True))])
-        card = self._panel('Kompatibilit\u00e4t')
-        self._line(card, 'Unterst\u00fctzter Erkennungspfad: OpenAI.Codex MSIX, app/ChatGPT.exe. Andere und kombinierte ChatGPT-Builds werden nicht erraten. Echte Windows-/OAuth-Abnahme steht aus.', muted=True)
+
+    def _set_settings_section(self, section):
+        if not self.closing and section in {'general', 'monitoring'}:
+            self.settings_section = section
+            self._set_page('Settings')
 
     def _page_settings(self):
-        self.quota.settings_view()
+        tabs = self._panel('Einstellungsbereiche')
+        self._actions(tabs, [('Allgemein', lambda: self._set_settings_section('general')),
+            ('Monitoring und Automatik', lambda: self._set_settings_section('monitoring'))])
+        if self.settings_section == 'monitoring':
+            self.quota.settings_view()
+            return
         card = self._panel('Darstellung', 'Die Auswahl bleibt nach dem Neustart erhalten.')
         self._actions(card, [('Dunkel', lambda: self._set_theme('dark')), ('Hell', lambda: self._set_theme('light'))])
         if self.settings.problem:
             self._line(card, 'Die vorhandenen Einstellungen sind besch\u00e4digt und wurden nicht \u00fcberschrieben.')
+        card = self._panel('Bedienung und Datensicherheit')
+        self._line(card, 'Strg+1 bis Strg+6: Ansicht wechseln. Strg+R: aktualisieren. Strg+F in Tabellen: suchen. Escape: Anmeldung abbrechen.', muted=True)
+        self._line(card, 'Workspace-Admin-Schl\u00fcssel gelten nur f\u00fcr die jeweilige Aktion. Die Quota-Historie bleibt von Credentials getrennt.', muted=True)
         card = self._panel('Profilspeicher')
         self._line(card, str(self.store.root), muted=True)
         self._line(card, 'Neue Anmeldungen verwenden den Windows-Anmeldespeicher. Bestehende verkn\u00fcpfte Profile behalten ihr urspr\u00fcngliches Speicherformat.', muted=True)
@@ -379,7 +473,12 @@ class MultiCodexApp(ctk.CTk):
         return True
 
     def _busy_state(self):
+        if hasattr(self, 'admin'):
+            self.admin.sync_busy()
         busy = self.mutating or self.closing
+        for table in self.data_tables.values():
+            if table.winfo_exists():
+                table.set_busy(busy)
         for button in [self.primary] + self.action_buttons:
             button.configure(state='disabled' if busy else 'normal')
         if self.login_cancel is not None:
@@ -454,9 +553,13 @@ class MultiCodexApp(ctk.CTk):
             self._refresh_id = self.after(3000, self._periodic_refresh)
 
     def _snapshot_loaded(self, snapshot):
-        if snapshot != self.view:
-            self.view = snapshot
+        changed = not self.snapshot_ready or snapshot != self.view
+        self.snapshot_ready = True
+        self.view = snapshot
+        if changed:
             self._render()
+        else:
+            self._sync_desktop_data()
 
     def _pool_loaded(self, rows):
         self.pool_rows, self.pool_error = rows, None
@@ -616,6 +719,8 @@ class MultiCodexApp(ctk.CTk):
             self.theme_name = saved
             self.palette = THEMES[saved]
             ctk.set_appearance_mode(saved)
+            self._remember_tables()
+            self.data_tables = {}
             self.rail.destroy(); self.right.destroy()
             self._build_shell(); self._render()
         self._submit('mutation', lambda: self.settings.save_theme(mode), apply, mutation=True)
@@ -636,6 +741,7 @@ class MultiCodexApp(ctk.CTk):
             return
         self.closing = True
         self.quota.close()
+        self.admin.close()
         if self.login_cancel is not None:
             self.login_cancel.set()
         if self._refresh_id is not None:

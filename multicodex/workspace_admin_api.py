@@ -322,10 +322,75 @@ class AdminContract:
         return copy.deepcopy(self._resolve(schema))
 
     def choices(self, operation, field):
-        schema = self.body_schema(operation) or {}
-        prop = self._resolve(schema.get('properties', {}).get(field, {}))
-        values = prop.get('enum', [])
-        return tuple(values) if all(isinstance(v, str) for v in values) else ()
+        """Finite writable choices, including referenced/composed field schemas.
+
+        Never infer choices for conditionally present body fields. Every offered
+        value is checked by the same validator used for the eventual request.
+        """
+        budget = [256]
+
+        def checked(node, depth):
+            budget[0] -= 1
+            if budget[0] < 0:
+                raise AdminAPIError('BOUND_EXCEEDED')
+            node = self._resolve(node, depth)
+            for kind in ('allOf', 'anyOf', 'oneOf'):
+                if kind in node and (not isinstance(node[kind], list) or
+                    not 1 <= len(node[kind]) <= 32):
+                    raise AdminAPIError('UNSUPPORTED_SCHEMA')
+            return node
+
+        def field_rules(node, depth=0):
+            node = checked(node, depth)
+            if node.get('readOnly') or any(k in node for k in ('oneOf', 'anyOf')):
+                return None
+            props = node.get('properties', {})
+            if not isinstance(props, dict):
+                raise AdminAPIError('UNSUPPORTED_SCHEMA')
+            rules = [props[field]] if field in props else []
+            for part in node.get('allOf', []):
+                found = field_rules(part, depth + 1)
+                if found is None:
+                    return None
+                rules.extend(found)
+            return rules
+
+        def finite(node, depth=0):
+            node = checked(node, depth)
+            if node.get('readOnly'):
+                return []
+            if 'enum' in node:
+                values = node['enum']
+                if (not isinstance(values, list) or len(values) > 1000 or
+                    not all(isinstance(v, str) for v in values)):
+                    return []
+                return values
+            for part in node.get('allOf', []):
+                values = finite(part, depth + 1)
+                if values is not None:
+                    return values
+            for kind in ('anyOf', 'oneOf'):
+                if kind in node:
+                    groups = [finite(part, depth + 1) for part in node[kind]]
+                    if any(group is None for group in groups):
+                        return None
+                    return [value for group in groups for value in group]
+            return None
+
+        rules = field_rules(self.body_schema(operation) or {})
+        if not rules:
+            return ()
+        schema = {'allOf': rules}
+        result = []
+        for value in dict.fromkeys(finite(schema) or []):
+            try:
+                self._validate(value, schema)
+            except AdminAPIError as exc:
+                if exc.code != 'INVALID_REQUEST':
+                    raise
+                continue
+            result.append(value)
+        return tuple(result)
 
     def request(self, operation, workspace_id, *, target=None, body=None, query=None):
         if operation not in self._operations:

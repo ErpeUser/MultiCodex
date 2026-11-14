@@ -29,3 +29,44 @@ Selected navigation uses a low-contrast filled surface, not a border. The main a
 ## Recovery implementation decision
 
 The existing rail, palette and native toolkit are retained. Labels are German; controls wrap into two columns at compact widths. Summary figures are backed by local metadata/process snapshots, not the design's sample accounts. Identity labels say assigned/saved, not live-authenticated. The current layout has not been rendered in this environment because CustomTkinter is unavailable; no pixel-fidelity or DPI claim is made.
+
+## Quota history extension - development patch, 14 November 2026
+
+The Usage screen gains a native Tk/ttk table inside the existing CustomTkinter
+shell, not a replacement application or web framework. It keeps the existing
+palette, German copy and keyboard-accessible text actions. Counts, records and
+selected-account detail are visible together; older observations are paginated
+in a separate history window. Progress bars mean **consumed**, never remaining.
+Unknown values have no invented bar. Expired historical resets retain the old
+consumption and explicitly require verification.
+
+The initial settings extension enabled only read-only quota monitoring. The
+following paragraph records that first slice; see the continuation below. Automatic
+profile activation and workspace administration are visibly unavailable, not
+silently simulated. Initial loading is not rendered as an empty account list.
+
+Better Design principles and a copy check informed hierarchy and labels;
+awesome-design-md's static Linear study and public Linear/Raycast product
+screenshots informed density, subdued chrome and explicit actions. No catalog
+system, brand assets, fonts or React components were installed. This keeps the
+native stack and existing identity but does not reproduce Figma pixel-for-pixel.
+
+Six real Linux/Tk fixture renders cover the new widgets. The full CustomTkinter
+shell, all existing screens, Figma editing and Windows/DPI acceptance remain
+unverified. See [implementation](docs/quota-implementation.md),
+[verification](docs/quota-verification.md) and
+[design review](.better-design/app-review.md).
+
+
+## Explicit profile starts and workspace visibility
+
+The Usage page gains an exact-account start queue below quota history. Keep its
+scope visible: no automatic account rotation, no closing existing windows, and
+waiting means unconfirmed capacity. Selection, pending, paused, recovery and
+verified-process-binding states use text, not color alone. Administrative member
+visibility belongs to Diagnostics and is read-only; the key input is masked and
+cleared after submission. No invented role/seat fields or implied authorization.
+Reuse current typography, sea-glass accent and dark/light surfaces. Reuse
+QuotaSettingsPanel and update its capability note at the integration boundary.
+Real Linux Tk component captures cover both themes and a narrow queue layout.
+They do not certify the complete shell, Windows DPI, native focus or accessibility.

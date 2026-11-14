@@ -1,9 +1,24 @@
 # MultiCodex implementation progress
 
 - Repository: `ErpeUser/MultiCodex` (private)
-- Branch: `feature/quota-history-monitoring-20261114`
-- Audit parent HEAD: `db7a6858d80f64f16d0c9883bd7382ccbcb23b8e` (verified via GitHub branch endpoint).
+- Branch: `main`
+- Current HEAD: `c4741379c76b7a53a6ff9767b9228295976bfc85` (pushed and verified against `origin/main`).
 - Machine-readable register: [`docs/implementation-status.json`](implementation-status.json).
+
+## Current main verification (2026-11-14)
+
+The historical 157-step register below remains the audit baseline. The current
+`main` checkout has since been verified with:
+
+- Python: 526 tests passed, 11 host-dependent tests skipped.
+- Node bridge: 8 tests passed, 1 host-dependent test skipped.
+- Python compileall and whitespace checks passed.
+- GUI smoke: all 12 views rendered in dark/light themes at 900x640 and 1180x760.
+- GitHub: only `main` remains; no open pull requests; `main` matches `origin/main`.
+
+External acceptance gates remain open where the register requires real Windows
+installer evidence, native DPI captures, live OAuth/provider access, Figma
+mutation evidence, or live workspace mutations.
 
 This is the exact 157-step execution record from the attached contract. Historical results are labelled; no CI, Windows, OAuth, Figma, admin-mutation, or release acceptance is claimed without evidence.
 

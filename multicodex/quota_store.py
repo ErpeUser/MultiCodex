@@ -252,7 +252,7 @@ class QuotaStore:
             'context_revision', 'last_verified_at', 'profile_id', 'session_id',
             'email', 'account_id', 'workspace_id', 'plan_type', 'seat_type', 'catalogued_at'}
         allowed = required | {'next_probe_at', 'probe_failures', 'probe_suspended',
-                              'last_probe_at', 'provider_account_id'}
+                              'last_probe_at', 'provider_account_id', 'active_session_id'}
         record = self._stored_object(row[0], allowed, required)
         try:
             if record['account_key'] != key:
@@ -264,6 +264,10 @@ class QuotaStore:
             sid = record['session_id']
             if sid != 'default' and (not isinstance(sid, str) or not re.fullmatch('[0-9a-f]{32}', sid)):
                 raise QuotaError()
+            active_sid = record.get('active_session_id', sid)
+            if active_sid != 'default' and (not isinstance(active_sid, str) or not re.fullmatch('[0-9a-f]{32}', active_sid)):
+                raise QuotaError()
+            record['active_session_id'] = active_sid
             for field in ('account_id', 'workspace_id', 'provider_account_id'):
                 _text(record.get(field), optional=True)
             for field in ('plan_type', 'seat_type'):
@@ -371,7 +375,7 @@ class QuotaStore:
                 record['context_revision'] = record.get('context_revision', 0) + 1
             record.update(profile_id=profile_id, session_id=session_id, email=email,
                           account_id=account_id, workspace_id=workspace_id, plan_type=plan_type,
-                          seat_type=seat_type, catalogued_at=now)
+                          seat_type=seat_type, active_session_id=session_id, catalogued_at=now)
             db.execute('INSERT INTO accounts VALUES (?,?) ON CONFLICT(account_key) DO UPDATE SET record=excluded.record',
                        (key, self._json(record)))
         return key

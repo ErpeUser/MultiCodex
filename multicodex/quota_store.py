@@ -38,6 +38,8 @@ LIMIT_TYPES = frozenset({'workspaceMemberUsageLimitReached', 'workspaceCreditLim
     'userRateLimitReached', 'rateLimitReached', 'workspaceUsageLimitReached'})
 RESET_TYPES = frozenset({'codexRateLimits', 'unknown'})
 CREDIT_STATUSES = frozenset({'available', 'redeeming', 'redeemed', 'unknown'})
+SNAPSHOT_FRESHNESS = frozenset({'LIVE_VERIFIED', 'CACHED', 'UNKNOWN'})
+VERIFICATION_STATES = frozenset({'VERIFIED', 'UNVERIFIED', 'REQUIRES_RECHECK'})
 MAX_TIMESTAMP = 253402300799
 
 
@@ -294,7 +296,8 @@ class QuotaStore:
             'plan_type', 'seat_type', 'observed_at', 'source', 'access_state', 'capture_reason',
             'schema_version', 'context_revision', 'additional_limits_reported',
             'ordinary_usage_allowed', 'spend_control_reached', 'rate_limit_reached_type'}
-        snapshot = self._stored_object(payload, required | {'reset_credits'}, required)
+        snapshot = self._stored_object(payload,
+            required | {'reset_credits', 'freshness', 'verification_state'}, required)
         try:
             if snapshot['account_key'] != key or snapshot['source'] != 'official-app-server':
                 raise QuotaError()
@@ -330,6 +333,11 @@ class QuotaStore:
                 raise QuotaError()
             if 'reset_credits' in snapshot:
                 _reset_credits(snapshot['reset_credits'])
+            if 'freshness' in snapshot and snapshot['freshness'] not in SNAPSHOT_FRESHNESS:
+                raise QuotaError()
+            if ('verification_state' in snapshot and
+                    snapshot['verification_state'] not in VERIFICATION_STATES):
+                raise QuotaError()
         except (QuotaError, TypeError) as exc:
             raise QuotaError('STORAGE') from exc
         return snapshot
@@ -407,7 +415,8 @@ class QuotaStore:
                 'plan_type': snapshot_plan, 'seat_type': account['seat_type'],
                 'observed_at': observed_at, 'source': 'official-app-server',
                 'access_state': account['membership_state'], 'capture_reason': capture_reason,
-                'schema_version': 1, 'context_revision': account.get('context_revision', 0)}
+                'schema_version': 1, 'context_revision': account.get('context_revision', 0),
+                'freshness': 'LIVE_VERIFIED', 'verification_state': 'VERIFIED'}
             db.execute('INSERT INTO snapshots VALUES (?,?,?,?,?)',
                 (snapshot['snapshot_id'], key, observed_at, time.time_ns(), self._json(snapshot)))
             # A successful quota call verifies this authentication, not a workspace role.

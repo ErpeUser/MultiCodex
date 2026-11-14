@@ -75,9 +75,11 @@ This log records only checks actually performed. A remote, Windows, OAuth, Figma
 
 ## Step 047 / 157 — Controlled restoration from backup
 
-- Status: **open**
-- The branch can create and validate backups but does not yet expose a reviewed restore operation that first preserves the damaged original and requires an explicit verified backup.
-- No restore mutation was invented without a contract and failure tests.
+- Status: **complete for the tested local model**
+- Added `QuotaStore.restore_from_backup(backup_path)`, which requires an explicit same-store backup path, verifies it read-only with SQLite integrity/schema checks, stages the copy, preserves the current database in a unique `quota.damaged-<id>.sqlite3` file, and installs the verified copy atomically.
+- Invalid or omitted backups leave the active database untouched and create no preservation artifact.
+- Test-first regression: `tests/test_quota_restore.py`; extracted suite is green with **117 tests**, and `python -m compileall -q multicodex tests` passes.
+- Commits: `61c7b8343faca324053b2a63fed5b9c9669c36e7`, `ae687d00ecfd8093284d57ca70d168f729cd05e4`.
 
 ## Step 048 / 157 — Concurrent storage access
 
@@ -86,14 +88,13 @@ This log records only checks actually performed. A remote, Windows, OAuth, Figma
 
 ## Current remote state
 
-- Current remote HEAD after the latest implementation commit: `35dedf3ae37a6e82afd0c44f7df33de671036239`.
-- Progress-log commit and CI confirmation for this latest state are pending the next documentation push.
+- Current remote HEAD after the latest implementation commit: `ae687d00ecfd8093284d57ca70d168f729cd05e4`.
+- The latest feature and Windows workflow runs (`43644097044`, `43644097097`) completed with `failure` before job steps ran; no green CI result is claimed.
 - CI remains unverified because the triggered GitHub jobs fail before starting steps.
 
 ## Open blockers and next work
 
 - Step 021 post-restoration end-to-end verification remains open.
-- Step 047 controlled backup restoration remains open.
 - Current-session full checkout/test execution requires a credentialed clone or equivalent authorized source export.
 - GitHub Actions runner/account availability must be resolved before CI can provide a green result.
 - Steps 049 onward (monitoring, activation, administration, GUI, design, Windows/OAuth/installer acceptance) remain to be executed and verified.

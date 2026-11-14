@@ -211,6 +211,6 @@ The counts sum to 157. Full required fields are in `implementation-status.json`.
 ## Current external blockers
 
 - Full credentialed checkout and current full Python/Node/GUI rerun unavailable.
-- Latest feature run `43644152559` and Windows run `43644152564` failed before job steps with `runner_id: 0`; publish job skipped.
+- Latest feature run `43646780333` and Windows run `43646780325` failed before job steps with `runner_id: 0`; publish job skipped.
 - Windows DPI/installer, OAuth/re-login, three-instance, Figma round-trip, and external workspace-admin mutation evidence remain open.
 - Step 021 is the next technical slice once an authorized checkout or equivalent source export is available.

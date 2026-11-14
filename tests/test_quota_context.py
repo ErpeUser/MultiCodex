@@ -92,4 +92,14 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(QuotaStore(self.store.root).poll_state(self.key),
                          {'next_at':1500,'failures':3,'suspended':True,'last_attempt':1200})
 
+    def test_schema_v1_migrates_without_losing_history(self):
+        import sqlite3
+        self.store.capture(self.key,self.data,observed_at=1100)
+        with sqlite3.connect(self.store.path) as db:
+            db.execute('PRAGMA user_version = 1')
+        reopened=QuotaStore(self.store.root)
+        with sqlite3.connect(self.store.path) as db:
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],2)
+        self.assertEqual(reopened.latest(self.key)['primary_used_percent'],20)
+
 if __name__=='__main__':unittest.main()

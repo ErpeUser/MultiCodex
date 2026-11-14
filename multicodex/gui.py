@@ -1,8 +1,11 @@
 """Native desktop interface. Worker services own I/O; Tk owns every widget."""
 from __future__ import annotations
 
+import gc
 import os
+import queue
 import threading
+import time
 import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox
@@ -18,6 +21,7 @@ from .profiles import ProfileStore
 from .runtime import LocalInstances
 from .settings import SettingsStore
 from .ui_tokens import THEMES, PADDING, NAV_WIDTH
+from . import __version__
 
 PAGES = ['Overview', 'Accounts', 'Instances', 'Usage', 'Diagnostics', 'Settings']
 LABELS = dict(zip(PAGES, ['\u00dcbersicht', 'Konten', 'Instanzen', 'Nutzung', 'Diagnose', 'Einstellungen']))
@@ -32,7 +36,7 @@ class MultiCodexApp(ctk.CTk):
         self.theme_name = self.settings.load()['theme']
         ctk.set_appearance_mode(self.theme_name)
         super().__init__()
-        self.title('MultiCodex 0.2.0-dev')
+        self.title('MultiCodex ' + __version__)
         self.geometry('1180x760')
         self.minsize(900, 640)
         self.palette = THEMES[self.theme_name]
@@ -51,6 +55,11 @@ class MultiCodexApp(ctk.CTk):
         self.mutating = False
         self.closing = False
         self.login_cancel = None
+        self.login_events = queue.Queue(maxsize=16)
+        self.login_url = None
+        self.login_profile = None
+        self.login_browser_opened = False
+        self._browser_lock = threading.Lock()
         self.page = 'Overview'
         self._poll_id = None
         self._refresh_id = None
@@ -60,11 +69,34 @@ class MultiCodexApp(ctk.CTk):
         self.protocol('WM_DELETE_WINDOW', self._close)
         self.bind('<Control-r>', lambda event: self._refresh(include_pool=True))
         self.bind('<Escape>', lambda event: self._cancel_login())
+        # Tk font/widget cycles can otherwise be collected during a worker's
+        # allocations; their finalizers call Tcl and must stay on this thread.
+        self._gc_was_enabled = gc.isenabled()
+        gc.disable()
+        self._gc_id = self.after(1000, self._collect_garbage)
         self._poll_id = self.after(100, self._poll_results)
         if auto_start:
             self._refresh(include_pool=True)
             self._discover()
             self._refresh_id = self.after(3000, self._periodic_refresh)
+
+    def _collect_garbage(self):
+        self._gc_id = None
+        gc.collect()
+        if not self.closing:
+            self._gc_id = self.after(1000, self._collect_garbage)
+
+    def destroy(self):
+        identity = self.__dict__.get('_gc_id')
+        if identity is not None:
+            self.after_cancel(identity)
+            self._gc_id = None
+        try:
+            super().destroy()
+        finally:
+            gc.collect()
+            if self.__dict__.pop('_gc_was_enabled', False):
+                gc.enable()
 
     def _build_shell(self):
         p = self.palette
@@ -105,6 +137,11 @@ class MultiCodexApp(ctk.CTk):
             fg_color=p['accent'], hover_color=p['selected'], text_color=p['accent_text'], command=self._new_profile)
         self.primary.grid(row=0, column=1, rowspan=2, padx=(12, 0))
         self._keyboard_button(self.primary)
+        self.sign_in_button = ctk.CTkButton(header, text='Anmelden', width=110, height=34,
+            fg_color=p['selected'], text_color=p['text'], hover_color=p['border'],
+            command=lambda: self._set_page('Accounts'))
+        self.sign_in_button.grid(row=2, column=1, sticky='e', pady=(8, 0))
+        self._keyboard_button(self.sign_in_button)
         self.page_frame = ctk.CTkScrollableFrame(self.right, fg_color='transparent')
         self.page_frame.grid(row=1, column=0, sticky='nsew', padx=24, pady=4)
         footer = ctk.CTkFrame(self.right, fg_color='transparent')
@@ -113,12 +150,14 @@ class MultiCodexApp(ctk.CTk):
         self.progress = ctk.CTkProgressBar(footer, height=3, mode='indeterminate', progress_color=p['accent'])
         self.progress.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 9))
         self.progress.set(0)
+        self.progress.grid_remove()
         self.status_bar = ctk.CTkLabel(footer, text='Bereit', text_color=p['muted'],
             anchor='w', justify='left', wraplength=530)
         self.status_bar.grid(row=1, column=0, sticky='w')
         self.cancel_button = ctk.CTkButton(footer, text='Anmeldung abbrechen', width=150,
             fg_color=p['selected'], text_color=p['text'], command=self._cancel_login, state='disabled')
         self.cancel_button.grid(row=1, column=1, padx=(10, 0))
+        self.cancel_button.grid_remove()
         self._keyboard_button(self.cancel_button)
 
     @staticmethod
@@ -229,6 +268,18 @@ class MultiCodexApp(ctk.CTk):
         self._actions(card, [('Speicherorte pr\u00fcfen', self._discover), ('Profil verkn\u00fcpfen', self._link_profile)])
 
     def _page_accounts(self):
+        if self.login_cancel is not None:
+            card = self._panel('Anmeldung: ' + (self.login_profile or 'OpenAI'),
+                'Im offiziellen Browser mit OpenAI anmelden. Die Anmeldung kann hier abgebrochen werden.')
+            if self.login_url is not None:
+                self._line(card, 'Warte auf die Browser-Anmeldung (maximal 10 Minuten).')
+                row = ctk.CTkFrame(card, fg_color='transparent')
+                row.pack(fill='x', padx=20, pady=(5, 14))
+                retry = ctk.CTkButton(row, text='Browser erneut öffnen', command=self._reopen_login)
+                retry.pack(anchor='w')
+                self._keyboard_button(retry)
+            else:
+                self._line(card, 'Die offizielle Anmeldeseite wird vorbereitet ...')
         managed = [p for p in self.view['profiles'] if not p.linked]
         if not managed:
             card = self._panel('Noch kein verwaltetes Profil')
@@ -246,7 +297,7 @@ class MultiCodexApp(ctk.CTk):
             if self.view['recovery'].get(profile.name):
                 self._actions(card, [('Wiederherstellen', lambda n=profile.name: self._recover(n))])
             else:
-                self._actions(card, [('Konto hinzuf\u00fcgen', lambda n=profile.name: self._login(n)),
+                self._actions(card, [('Mit OpenAI anmelden', lambda n=profile.name: self._login(n)),
                     ('Erneut anmelden', lambda n=profile.name: self._login(n, reauthenticate=True)),
                     ('Anmeldung pr\u00fcfen', lambda n=profile.name: self._inspect_account(n))])
         card = self._panel('Vorhandener Multi-Auth-Pool', 'Nur Bestandsanzeige. Die verschl\u00fcsselte \u00dcbernahme dieser Pool-Konten in einzelne Instanzen ist noch nicht implementiert.')
@@ -318,19 +369,44 @@ class MultiCodexApp(ctk.CTk):
         busy = self.mutating or self.closing
         for button in [self.primary] + self.action_buttons:
             button.configure(state='disabled' if busy else 'normal')
-        self.cancel_button.configure(state='normal' if self.login_cancel is not None and not self.login_cancel.is_set() else 'disabled')
-        if self.jobs.pending and not self._progress_running:
+        if self.login_cancel is not None:
+            self.cancel_button.grid()
+            self.cancel_button.configure(state='normal' if not self.login_cancel.is_set() else 'disabled')
+        else:
+            self.cancel_button.grid_remove()
+        foreground = busy or any(key not in {'snapshot', 'pool', 'discovery'} for key in self.callbacks)
+        if foreground and not self._progress_running:
+            self.progress.grid()
             self.progress.start(); self._progress_running = True
-        elif not self.jobs.pending and self._progress_running:
+        elif not foreground:
             self.progress.stop(); self.progress.set(0); self._progress_running = False
+            self.progress.grid_remove()
 
     def _poll_results(self):
         self._poll_id = None
+        while True:
+            try:
+                cancel, url, opened = self.login_events.get_nowait()
+            except queue.Empty:
+                break
+            if cancel is self.login_cancel and not cancel.is_set():
+                self.login_url = url
+                self.login_browser_opened = opened
+                self._set_status('Browser wird geöffnet. Anmeldung kann hier abgebrochen werden.' if opened is None else
+                    'Im Browser mit OpenAI anmelden. Browser bei Bedarf erneut öffnen.' if opened else
+                    'Der Browser konnte nicht geöffnet werden. Unter Konten auf Browser erneut öffnen klicken.')
+                if self.page == 'Accounts':
+                    self._render()
         for result in self.jobs.drain():
             callback, mutation, error_callback = self.callbacks.pop(result.key, (None, False, None))
             if mutation:
                 self.mutating = False
+                was_login = self.login_cancel is not None
                 self.login_cancel = None
+                self.login_url = None
+                self.login_profile = None
+                if was_login and self.page == 'Accounts' and not self.closing:
+                    self._render()
             if not self.closing:
                 try:
                     if result.error is not None:
@@ -414,18 +490,62 @@ class MultiCodexApp(ctk.CTk):
             return
         cancel = threading.Event()
         self.login_cancel = cancel
+        self.login_profile = name
+        self.login_url = None
+        self.login_browser_opened = False
         def open_login(url):
-            validate_login_url(url)
-            if not webbrowser.open(url, new=2):
-                raise RuntimeError('System browser unavailable')
+            self._open_login_browser(cancel, validate_login_url(url))
         accepted = self._submit('mutation', lambda: self.services.operations.login(name,
             confirmed=True, reauthenticate=reauthenticate, on_browser=open_login, cancel=cancel),
             self._completed, mutation=True)
         if not accepted:
             self.login_cancel = None
+            self.login_profile = None
         else:
-            self._set_status('Im offiziellen Browser anmelden. Die bestehende Instanz bleibt bis zum Erfolg ge\u00f6ffnet.')
+            self._set_page('Accounts')
+            self._set_status('OpenAI-Anmeldung wird vorbereitet. Der Browser öffnet sich anschließend.')
         self._busy_state()
+
+    def _open_login_browser(self, cancel, url):
+        if cancel.is_set():
+            return
+        url = validate_login_url(url)
+        events, browser_lock = self.login_events, self._browser_lock
+        events.put_nowait((cancel, url, None))
+        if not browser_lock.acquire(blocking=False):
+            events.put_nowait((cancel, url, False))
+            return False
+        done, result = threading.Event(), []
+        # Shell browser activation can stall. This helper holds no Tk objects
+        # and cannot hold the auth worker or application shutdown indefinitely.
+        def activate():
+            try:
+                opened = False if cancel.is_set() else bool(webbrowser.open(url, new=2))
+            except Exception:
+                opened = False
+            finally:
+                browser_lock.release()
+            result.append(opened)
+            try:
+                events.put_nowait((cancel, url, opened))
+            except queue.Full:
+                pass
+            done.set()
+        threading.Thread(target=activate, name='multicodex-browser', daemon=True).start()
+        deadline = time.monotonic() + 5
+        while not done.is_set() and time.monotonic() < deadline:
+            if cancel.wait(.05):
+                return False
+        if not done.is_set():
+            events.put_nowait((cancel, url, False))
+            return False
+        return result[0]
+
+    def _reopen_login(self):
+        if self.login_cancel is None or self.login_cancel.is_set() or self.login_url is None:
+            return
+        cancel, url = self.login_cancel, self.login_url
+        self._submit('login-browser', lambda: self._open_login_browser(cancel, url), lambda _: None)
 
     def _cancel_login(self):
         if self.login_cancel is not None:

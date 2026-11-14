@@ -2,6 +2,7 @@
 from __future__ import annotations
 import tempfile
 import time
+import sys
 from pathlib import Path
 
 
@@ -31,6 +32,8 @@ def check_gui(screenshot_dir: Path | None = None) -> dict:
                     app.update()
                     if not app.page_frame.winfo_children() or errors:
                         raise RuntimeError('Page did not render')
+                    if not app.sign_in_button.winfo_ismapped():
+                        raise RuntimeError('Sign-in entry is not visible')
                     screens.append(theme + '/' + page)
                 for width, height in ((900, 640), (1180, 760)):
                     app.geometry(f'{width}x{height}')
@@ -38,11 +41,16 @@ def check_gui(screenshot_dir: Path | None = None) -> dict:
                     app.update()
                     if app.header_title.winfo_rootx() < app.rail.winfo_rootx() + app.rail.winfo_width():
                         raise RuntimeError('Header overlaps navigation')
+                    if app.progress.winfo_ismapped() or app.cancel_button.winfo_ismapped():
+                        raise RuntimeError('Idle GUI falsely displays sign-in activity')
                 if screenshot_dir:
                     from PIL import ImageGrab
                     screenshot_dir.mkdir(parents=True, exist_ok=True)
-                    x, y = app.winfo_rootx(), app.winfo_rooty()
-                    ImageGrab.grab(bbox=(x, y, x+app.winfo_width(), y+app.winfo_height())).save(screenshot_dir/f'gui-smoke-{theme}.png')
+                    # Capture only this owned test window. Desktop bounding-box
+                    # capture can leak unrelated foreground windows into evidence.
+                    if sys.platform != 'win32':
+                        raise RuntimeError('Owned-window screenshots require Windows')
+                    ImageGrab.grab(window=app.winfo_id()).save(screenshot_dir/f'gui-smoke-{theme}.png')
         finally:
             app.closing = True
             app._shutdown()

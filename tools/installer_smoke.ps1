@@ -6,6 +6,9 @@ $ErrorActionPreference = 'Stop'
 $Installer = (Resolve-Path $Installer).Path
 New-Item -ItemType Directory -Force $ReportDirectory | Out-Null
 $ReportDirectory = (Resolve-Path $ReportDirectory).Path
+# A probe must never replace the registration of a real user installation.
+$uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{CCB8A29E-9E8D-4856-976E-0C873B4C98A2}_is1'
+if (Test-Path -LiteralPath $uninstallKey) { throw 'MultiCodex is already installed; run installer verification in a clean Windows account' }
 $probeId = [guid]::NewGuid().ToString('N')
 $destination = Join-Path $env:TEMP "MultiCodex Install Probe $probeId"
 $stateRoot = Join-Path $env:LOCALAPPDATA 'MultiCodex'
@@ -15,7 +18,7 @@ New-Item -ItemType Directory -Force $stateRoot | Out-Null
 'Synthetic preservation probe; no credentials' | Set-Content -LiteralPath $sentinel
 $originalHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 function Invoke-Checked([string]$File, [string]$Arguments) {
-    $process = Start-Process -FilePath $File -ArgumentList $Arguments -PassThru
+    $process = Start-Process -FilePath $File -ArgumentList $Arguments -WindowStyle Hidden -PassThru
     if (!$process.WaitForExit(120000)) {
         # Only this newly started test process, not any process matched by name.
         $process.Kill($true)

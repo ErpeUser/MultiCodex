@@ -1,6 +1,6 @@
 #define AppName "MultiCodex"
 #ifndef AppVersion
-  #define AppVersion "0.2.0-dev"
+  #define AppVersion "0.2.1-dev"
 #endif
 [Setup]
 AppId={{CCB8A29E-9E8D-4856-976E-0C873B4C98A2}

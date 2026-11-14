@@ -1,64 +1,60 @@
 # Installation, Windows-Build und Release
 
-## Endbenutzerstatus
+## Lokaler Entwicklungsbuild
 
-Es wurde in dieser Sitzung **keine Windows-Setup-EXE gebaut**, kein Windows-Installer gestartet und kein GitHub Release angelegt. Dieses Dokument beschreibt den vorbereiteten Entwicklungs-/Buildweg, nicht einen bereits verfuegbaren Download.
+Am 13. November 2026 wurde Version `0.2.1-dev` auf Windows 11 x64 gebaut. Die gebuendelte und die installierte EXE bestanden Runtime- und GUI-Pruefungen; der Installer bestand Installation, gleichversioniges Upgrade, Deinstallation und Erhalt einer externen synthetischen Testdatei. Das ist eine lokale Entwicklungsdistribution, keine vollstaendige OAuth-/Multi-Instance-Produktfreigabe.
 
-Ein spaeterer gepruefter Installer soll Python, die GUI und die benoetigte Node-Laufzeit enthalten. Die offizielle Codex-Desktop-Anwendung wird nicht mitgeliefert und nicht veraendert.
+Die Dateien werden lokal unter `output/` erzeugt:
 
-## Entwicklungsumgebung
+- `Codex-Multi-Studio-Setup-v0.2.1-dev.exe`: normaler Installer.
+- `MultiCodex-0.2.1-dev-win-x64-portable.zip`: kompletten Ordner entpacken und `MultiCodex.exe` starten. Die EXE braucht die mitgelieferten Unterordner.
+- `build-evidence.zip`: Tests, Runtime-/GUI-Berichte, Installationsnachweis, Quellenmanifest und Buildumgebung.
+- `SHA256SUMS.txt`: Pruefsummen dieser Dateien.
 
-Windows 11 x64; Python 3.12 oder neuer; Node 22.19 oder neuer; die passende offizielle Codex-Desktop-Installation. Das aktuelle Erkennungsmuster ist `OpenAI.Codex_*/app/ChatGPT.exe`. Eine beliebige neue ChatGPT-Version wird nicht als kompatibel ausgegeben.
+Die installierte Anwendung benoetigt keine separate Python- oder Node-Installation. Die offizielle Codex-/ChatGPT-Desktop-Anwendung bleibt eine externe Voraussetzung und wird nicht mitgeliefert. Der lokale Entwicklungsbuild ist nicht signiert. Es wurde kein GitHub Release angelegt.
+
+## Installieren und starten
+
+1. Die Setup-EXE aus `output/` starten.
+2. Zielordner ist standardmaessig `%LOCALAPPDATA%\Programs\MultiCodex`; Administratorrechte sind nicht erforderlich.
+3. MultiCodex ueber das Startmenue oder die optionale Desktopverknuepfung starten.
+4. Oben rechts **Anmelden** oder links **Konten** waehlen. Bei **Codex 1** **Mit OpenAI anmelden** klicken. Der offizielle Browser oeffnet `auth.openai.com`; bei einem Browserfehler kann **Browser erneut oeffnen** verwendet oder die Aktion abgebrochen werden.
+
+Programm und Daten liegen getrennt: Profile unter `%LOCALAPPDATA%\MultiCodex\profiles`, Einstellungen unter `%LOCALAPPDATA%\MultiCodex\settings.json`. Verknuepfte Originalprofile bleiben an ihrem Ort. Neue verwaltete Logins verlangen Keyring-Speicherung; siehe [Sicherheit](security.md).
+
+## Entwicklung und Build
+
+Gepruefte Werkzeuge: CPython **3.12.10 x64**, Node **22.19.0**, PyInstaller **6.20.0**, Inno Setup **6.7.3**, Windows 11 Build 26200. Python 3.14/Tcl 9 ist fuer diese Paketierung gesperrt, weil der GUI-Ressourcen-Hook die eingebetteten Tcl-Daten nicht korrekt sammelt.
+
+Voraussetzungen bei Bedarf ueber die offiziellen Paketquellen installieren:
 
 ```powershell
-python -m pip install -r requirements-build.txt
-npm install --prefix bridge --omit=dev --ignore-scripts --no-audit --no-fund
-python -m unittest discover -s tests -v
-node --test bridge/tests/service.test.mjs
-python run.py --self-check --report runtime-check.json
-python run.py --gui-smoke --report gui-check.json
-python run.py
+winget install --id Python.Python.3.12 --exact --version 3.12.10
+winget install --id JRSoftware.InnoSetup --exact --version 6.7.3
+./tools/build_windows.ps1
 ```
 
-Die beiden Pruefbefehle liefern Exitcode 1 bei fehlenden Voraussetzungen. Der GUI-Probelauf arbeitet nur mit einem temporaeren Profil. Er prueft echte Widget-Erzeugung, Seiten und zwei Themes/Fenstergroessen, **nicht** den vollstaendigen Bedienungs-, DPI-, OAuth- oder Multi-Window-Ablauf.
+Git ist fuer das Quellenmanifest erforderlich. Das Skript erstellt `.venv`, installiert den vollstaendigen Python-Buildlock mit `--require-hashes`, laedt das offizielle Node-Windows-Archiv mit festem SHA-256 und fuehrt `npm ci --ignore-scripts` aus. Fremde Installationsskripte und eine Multi-Auth-Erststartmigration werden nicht ausgefuehrt.
 
-Npm-Installationsskripte werden absichtlich nicht ausgefuehrt: der Manager darf nicht schon bei Installation fremde Codex-Konfigurationen oder Launcher umbinden. Ein volles, ueberprueftes transitive-dependency Lockfile fehlt in diesem Snapshot; `npm install` ist daher kein belegter reproduzierbarer Release-Build.
+Danach folgen alle Python-/Node-Tests, Syntaxpruefungen, Quell-Runtime-/GUI-Proben, PyInstaller, Buendelung der Runtime und Lizenzen, beide Proben mit der gebauten EXE, Inno Setup und der tatsaechliche Installationszyklus. GUI-Screenshots erfassen nur das eigene temporaere Testfenster. Fehler stoppen den Ablauf; vorhandene Benutzerkonten werden fuer die Pruefungen nicht verwendet.
 
-## Windows-Pipeline
+Der Installer-Smoke-Test verlangt ein Windows-Konto ohne bereits installierte MultiCodex-Version, damit er keine echte Installationsregistrierung oder Startmenueverknuepfung ersetzt. Nach dauerhafter Installation muss ein erneuter kompletter Buildtest in einem sauberen Testkonto oder einer VM stattfinden. Eine gleichversionige Neuinstallation ist geprueft; ein Upgrade zwischen unterschiedlichen Produktversionen noch nicht.
 
-`.github/workflows/windows.yml` ist vorbereitet fuer:
+Der Compiler wird aus den bekannten Inno-Setup-6-Installationsorten genommen oder mit `-InnoCompiler 'C:\Pfad\ISCC.exe'` angegeben. Sein Hash wird festgehalten. CI verwendet denselben Buildbefehl, CPython 3.12.10 und die Windows-2025-Runnerfamilie; der aktuelle Workflow wurde in dieser Sitzung nicht bei GitHub ausgefuehrt. Die Lockfiles sichern die Dependency-Aufloesung, nicht bitidentische Compiler-/Runner-Ergebnisse.
 
-1. Python-/Node-Tests und Python-Syntaxpruefung.
-2. Echte Runtime- und Widget-Pruefungen.
-3. PyInstaller-One-Directory-Build inklusive CustomTkinter-Ressourcen und Python-Distributionshinweisen.
-4. Buendelung von `node.exe`, Node-Lizenz und gepinntem Multi-Auth-Paket; keine offiziellen Desktop-Binaries.
-5. Paketpruefung mit `Start-Process`, explizitem Warten, Exitcode und JSON-Bericht.
-6. Inno-Setup-Compiler vom Runner, dessen Version aufgezeichnet wird. Fehlt er, bricht der Build ab, statt ungeprueft einen anderen Compiler zu installieren.
-7. Installation, echter GUI-Start, gleichversioniges Upgrade, Deinstallation und Erhalt einer externen Testdatei durch `tools/installer_smoke.ps1`.
-8. Setup-EXE, Buildnachweise und SHA-256-Pruefsummen als private Buildartefakte.
+## Buildnachweise
 
-Die YAML-Datei wurde lokal geparst; PowerShell, PyInstaller-Windows-Build und Inno Setup wurden hier **nicht ausgefuehrt**. Signierung und eigenes Anwendungssymbol fehlen. Windows 10 ist nicht getestet. Ein Upgrade zwischen unterschiedlichen Produktversionen ist durch den gleichversionigen Smoke-Test ebenfalls nicht belegt.
+`evidence/build.json` enthaelt Zeit, Betriebssystem, Python-/Node-Version, Node-Archivhash, Compilerhash, Setuphash und Source-Commit. Lokale Aenderungen werden als `source_dirty: true` ausgewiesen. Ein Hashmanifest umfasst alle nicht ignorierten Quelldateien; Patch und Liste neuer Dateien werden ebenfalls gespeichert. Die lokale Distribution darf deshalb nicht als unveraenderter Build des Basiscommits ausgegeben werden.
 
-## Getrennte Datenspeicherung
-
-Programm: `%LOCALAPPDATA%\Programs\MultiCodex`.
-
-Daten: `%LOCALAPPDATA%\MultiCodex\profiles` und `settings.json`. Die Installationsdateiliste enthaelt diese Daten nicht. Der vorbereitete Installations-Smoke-Test kontrolliert ihren Erhalt; das wurde in dieser Linux-Sitzung nicht nativ nachgewiesen.
-
-Verknuepfte Originalprofile bleiben an ihrem bisherigen Ort. Fuer verwaltete Logins verlangt der Code Keyring-Speicherung; es gibt keine automatische Klartext-Rueckfalloption. Mehr dazu in `security.md`.
+`evidence/installed/installer-smoke.json` bindet den erfolgreichen Installationszyklus an genau die getesteten Setup-Bytes. Die Berichte belegen keine echten Kontowechsel oder OAuth-Abnahme. [Pruefmatrix](verification.md).
 
 ## Veroeffentlichungssperre
 
-Ein Tag allein reicht nicht. Der Publish-Job verlangt:
+Ein lokaler Build oder Tag ersetzt die native Produktfreigabe nicht. Der Publish-Job verlangt weiterhin:
 
-- einen erfolgreichen Windows-Build mit echtem Installer-Smoke-Test;
+- einen erfolgreichen Windows-Build einschliesslich echtem Installer-Smoke-Test;
 - die GitHub-Umgebung `release`, die der Betreiber mit erforderlichen Reviewern schuetzen muss;
-- eine Variable `MULTICODEX_RELEASE_ACCEPTANCE` mit einem nativen Pruefbericht;
-- **exakt passenden Source-Commit und SHA-256 der getesteten Setup-Datei**;
-- alle Kriterien in `tools/release_gate.py` ausdruecklich `true`, darunter sichere Uebernahme bestehender Pool-Konten, echte OAuth-Ablaufe, drei parallele Instanzen, DPI, vollstaendige Locks und Lizenz-/Icon-Pruefung.
+- `MULTICODEX_RELEASE_ACCEPTANCE` mit einem nativen Bericht fuer exakt denselben Source-Commit und Setup-SHA-256;
+- alle Kriterien in `tools/release_gate.py`, insbesondere echte OAuth-Ablaeufe, drei parallele Instanzen, sichere Pool-Uebernahme, DPI/Bedienung, Abhaengigkeiten sowie Lizenz-/Icon-Pruefung.
 
-Diese Voraussetzungen sind jetzt nicht erfuellt. Der Checker prueft Bindung und Vollstaendigkeit des Berichts, nicht die Wahrhaftigkeit eines manuell ausgefuellten Formulars. Native Tester und Reviewer bleiben erforderlich.
-
-Praktischer spaeterer Ablauf: Der Tag-Build erzeugt ein Artefakt; die Veroeffentlichung bleibt gesperrt. Genau dieses Artefakt wird auf einem autorisierten Windows-Testsystem geprueft. Anschliessend wird der Bericht als Variable der geschuetzten Umgebung hinterlegt und nur der fehlgeschlagene Publish-Job erneut ausgefuehrt. So bleibt die Freigabe an dieselben Installer-Bytes gebunden.
-
-Ein erfolgreich veroeffentlichtes Release muss die Setup-Datei selbst enthalten, nicht nur einen Link auf ein kurzlebiges Actions-Artefakt. Aktuell gibt es keinen solchen Release-Link.
+Diese Gesamtfreigabe liegt weiterhin nicht vor. Sichere Pool-Uebernahme ist noch nicht implementiert. Keine ausgefuellte Freigabe wird erfunden und kein Release-Tag wurde erstellt. Ein spaeteres GitHub Release muss die exakt gepruefte Setup-Datei selbst enthalten.

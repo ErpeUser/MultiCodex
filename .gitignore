@@ -11,6 +11,7 @@ ClaudeProfiles/
 **/Cookies-journal
 *.wal
 *.lock
+!requirements-build.windows-x64.lock
 .env
 .env.*
 !.env.example
@@ -39,3 +40,7 @@ profiles/
 release-acceptance.local.json
 # CI evidence is uploaded explicitly, not committed as generated source
 evidence/
+# Workspace-provided tooling and old local probe outputs
+.agents/
+runtime-check.json
+gui-check.json

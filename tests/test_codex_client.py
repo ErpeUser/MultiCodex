@@ -5,7 +5,7 @@ import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from multicodex.codex_client import CodexClient, CodexError, validate_login_url, AccountIdentity
+from multicodex.codex_client import CodexClient, CodexError, CodexAccountService, validate_login_url, AccountIdentity
 
 FIXTURE = Path(__file__).parent/'helpers'/'fake_app_server.py'
 
@@ -35,6 +35,32 @@ class CodexClientTests(unittest.TestCase):
             with self.assertRaises(CodexError) as caught:
                 client.request('account/read', {}, timeout=.1)
             self.assertEqual(caught.exception.code,'TIMEOUT')
+
+    def test_cancel_interrupts_a_pending_account_request(self):
+        with self.client('hang') as client:
+            client.cancel = threading.Event()
+            timer = threading.Timer(.05, client.cancel.set)
+            timer.start()
+            self.addCleanup(timer.join)
+            with self.assertRaises(CodexError) as caught:
+                client.request('account/read', {}, timeout=.5)
+            self.assertEqual(caught.exception.code, 'CANCELLED')
+
+    def test_describe_can_be_cancelled_during_account_read(self):
+        cancel = threading.Event()
+        service = CodexAccountService(cli_resolver=lambda: FIXTURE)
+        timer = threading.Timer(.05, cancel.set)
+        timer.start()
+        self.addCleanup(timer.join)
+        with patch.object(service, 'client', return_value=self.client('hang')):
+            try:
+                service.describe(self.home, cancel=cancel)
+            except CodexError as exc:
+                self.assertEqual(exc.code, 'CANCELLED')
+            except TypeError:
+                self.fail('Account preparation must accept and observe cancellation')
+            else:
+                self.fail('Cancelled account read must not succeed')
 
     def test_raw_server_error_is_not_exposed(self):
         with self.client('secret-error') as client:

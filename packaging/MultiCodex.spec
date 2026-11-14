@@ -1,12 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
 # Build on Windows: pyinstaller packaging/MultiCodex.spec --noconfirm --clean
 from pathlib import Path
+import sys
 from PyInstaller.utils.hooks import collect_data_files, copy_metadata
+
+if sys.platform != 'win32' or sys.version_info[:2] != (3, 12):
+    raise RuntimeError('Build with Windows CPython 3.12; Tcl/Tk 9 builds are not supported yet.')
 
 ROOT = Path(SPECPATH).resolve().parent
 datas = collect_data_files('customtkinter')
-for distribution in ('customtkinter', 'darkdetect', 'psutil', 'Pillow'):
+for distribution in ('customtkinter', 'darkdetect', 'packaging', 'psutil', 'Pillow', 'pyinstaller'):
     datas += copy_metadata(distribution)
+datas += [(str(Path(sys.base_prefix) / 'LICENSE.txt'), 'licenses')]
 a = Analysis(
     [str(ROOT / 'run.py')],
     pathex=[str(ROOT)],

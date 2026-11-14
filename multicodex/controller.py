@@ -71,6 +71,8 @@ class SessionController:
 
     def login(self, name, *, confirmed, on_browser, cancel: threading.Event,
               reauthenticate=False):
+        if cancel.is_set():
+            raise CodexError('CANCELLED')
         with self.sessions.lock(name):
             self._ready(name, confirmed)
             profile = self.store.get(name)
@@ -84,7 +86,7 @@ class SessionController:
                 # corrupt profile or unreadable session catalogue remains a
                 # hard error instead of being mistaken for that state.
                 try:
-                    previous = self.auth.describe(profile.codex_home)
+                    previous = self.auth.describe(profile.codex_home, cancel=cancel)
                 except CodexError as exc:
                     if exc.code != 'NOT_AUTHENTICATED' or reauthenticate:
                         raise

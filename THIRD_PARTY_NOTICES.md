@@ -22,9 +22,10 @@ The existing profile/environment and MSIX discovery strategy informed the recove
 
 - CustomTkinter 5.2.2: MIT.
 - psutil 6.1.1: BSD 3-Clause.
-- darkdetect and Pillow are transitive GUI dependencies; retain their installed distribution metadata/notices.
-- Node 22.19.0 is selected by the build workflow; its LICENSE must be present before packaging.
+- darkdetect 0.8.0 and packaging 26.3 are transitive GUI dependencies; their distribution metadata/notices are bundled.
+- Pillow 12.3.0 is an explicit dependency for owned-window GUI screenshots; its distribution metadata/notices are bundled.
+- Node 22.19.0 is copied from the official Windows x64 archive with its full LICENSE, after checking the pinned SHA-256.
 - PyInstaller 6.20.0 is the build dependency; retain applicable license/exception notices.
 - Inno Setup is an external build compiler, not redistributed by MultiCodex; record the actual compiler version and review its terms before release.
 
-Dependency metadata is collected into the packaged application. This repository contains no copied system font files. A complete transitive lockfile and final distribution-license audit remain release prerequisites.
+Python and PyInstaller notices, installed runtime-distribution metadata, upstream package license files and the repository's `licenses/` directory are retained in the bundle. This repository contains no copied system font files. The verified Python x64 build lock and npm lock cover transitive dependencies; the final distribution-license audit, own app icon and native release acceptance remain prerequisites for publication.

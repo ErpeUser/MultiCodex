@@ -1,6 +1,8 @@
 # MultiCodex
 
-**0.2.0-dev: wiederhergestellter und reparierter Entwicklungsstand. Kein fertiges Windows-Release.**
+**0.2.1-dev: lokal gebauter und installierbarer Windows-Entwicklungsbuild. Die vollstaendige Produktfreigabe steht noch aus.**
+
+Am 13. November 2026 wurden EXE, portable ZIP und Setup 0.2.1-dev auf Windows 11 x64 gebaut und mit Runtime-, GUI-, Installations-, gleichversionigen Upgrade- und Deinstallationstests geprueft. Die lokalen Dateien liegen unter `output/`; Buildnachweise und Pruefsummen sind beigelegt. Anleitung: [Installation und Build](docs/installation.md).
 
 MultiCodex verbindet eine native Python/CustomTkinter-Oberflaeche mit getrennten Codex-Desktop-Profilen, profilbezogenen Anmeldungen und einer lesenden Bestandsanzeige fuer `codex-multi-auth`. Das ist ein unabhaengiges Projekt, kein offizielles OpenAI-Produkt.
 
@@ -15,7 +17,7 @@ Die Historie beginnt unveraendert mit `55cda8426a1f203abcfffe569e87556034b68dce`
 - **Bestandsanzeige des Multi-Auth-Pools:** gepinnte Version `2.26.0`, oeffentlicher Speicherpfad, strikt lesende Auswertung des bekannten v3-Formats. Keine Erststart-Migration und keine globale Kontoauswahl. Zugangsdaten werden nicht an Python/GUI ausgegeben.
 - **GUI:** sechs Ansichten, deutsche Bedienung, persistentes Dark/Light-Theme, begrenzte Hintergrundjobs, keine Prozessabfrage beim Rendern, Schutz vor Doppelaktionen, Abbruch und Wiederherstellung. Nutzungswerte stammen aus dem offiziellen App-Server; unbekannte Werte bleiben unbekannt.
 
-**Pruefumfang:** Diese Implementierung ist durch lokale Tests mit temporaeren Profilen, echten Test-Unterprozessen und simulierten Provider-/Desktop-Grenzen abgesichert. Die echte Windows-Anwendung und echte OAuth-Anmeldungen sind damit noch nicht nachgewiesen.
+**Pruefumfang:** Automatisierte Tests mit temporaeren Profilen, echte Windows-Widgets sowie die gebaute und installierte Manager-EXE wurden ausgefuehrt. Echte OAuth-Anmeldungen und drei getrennte offizielle Desktop-Instanzen sind damit noch nicht nachgewiesen.
 
 ## Noch nicht erfuellt
 
@@ -24,17 +26,17 @@ Die Historie beginnt unveraendert mit `55cda8426a1f203abcfffe569e87556034b68dce`
 | Gespeicherte globale Pool-Konten ohne neues Login einer verwalteten Instanz zuweisen | **Nicht implementiert.** Die sichere Uebernahme der gepoolten Tokens in den verschluesselten offiziellen Authentifizierungsspeicher ist offen. Bestandsanzeige ist keine Uebernahme. |
 | Bereits getrennt angemeldete Legacy-Profile weiterverwenden | Verknuepfungs- und Startcode vorhanden; Originaldateien bleiben unveraendert. Reale Windows-Pruefung offen. |
 | Neue kombinierte ChatGPT-Desktop-App | Nicht verifiziert. Die Erkennung kennt nur `OpenAI.Codex_*/app/ChatGPT.exe`. |
-| Echte GUI-/DPI-Abnahme und Screenshots | Lokal nicht ausgefuehrt: CustomTkinter fehlt und Paketdownloads sind blockiert. Ein echter Widget-Smoketest ist implementiert, aber kein Ersatz fuer die ausstehende Abnahme. |
-| Windows-Installer und GitHub Release | Nicht gebaut/veroeffentlicht. Ein Workflow ist vorbereitet, kein Build-Erfolg behauptet. |
-| Vollstaendig reproduzierbare Abhaengigkeiten | Direkte Versionen gepinnt; vollstaendige, gepruefte transitive Lockfiles und Runner-/Compiler-Pins fehlen. |
+| Echte GUI-/DPI-Abnahme und Screenshots | Widgets und zwei Themes in zwei Fenstergroessen unter Windows geprueft; nur das eigene Testfenster wird aufgenommen. Vollstaendige Tastatur-/DPI-Abnahme offen. |
+| Windows-Installer und GitHub Release | Setup lokal gebaut; Installation, gleichversioniges Upgrade und Deinstallation geprueft. Kein GitHub Release veroeffentlicht. |
+| Reproduzierbare Abhaengigkeiten | Python-3.12-x64-Buildlock mit Wheel-Hashes und npm-Lock mit `npm ci` geprueft. Node-Archiv gepinnt; Compilerhash wird erfasst. Vollstaendig bitidentische Builds sind nicht zugesagt. |
 | Eigenes Anwendungssymbol, Signierung | Versionsressource vorhanden; eigenes Icon und Signatur fehlen. Keine SmartScreen-Zusage. |
 
-Zielrepository ist **privat: [`ErpeUser/MultiCodex`](https://github.com/ErpeUser/MultiCodex)**. Der verifizierte Entwicklungsstand ist auf dem Default-Branch `main` abgelegt. Das ist weiterhin kein fertiges Windows-Release: Native Abnahme, Installer und GitHub-Release bleiben gesperrt, bis die in [Installation](docs/installation.md) und [Pruefmatrix](docs/verification.md) beschriebenen Nachweise vorliegen.
+Das Zielrepository muss **privat bleiben: [`ErpeUser/MultiCodex`](https://github.com/ErpeUser/MultiCodex)**. Die aktuellen Buildaenderungen liegen lokal im Arbeitsbaum; es wurde kein Tag und kein GitHub Release angelegt. Die Veroeffentlichung bleibt bis zur vollstaendigen nativen Abnahme gesperrt; siehe [Installation](docs/installation.md) und [Pruefmatrix](docs/verification.md).
 
 ## Bedienung
 
 1. Unter **Instanzen** ein neues verwaltetes Profil erstellen oder ein bereits getrenntes Codex-Profil verknuepfen.
-2. Unter **Konten** fuer das verwaltete Profil **Konto hinzufuegen** waehlen und im offiziellen Browser anmelden. Kein Passwortfeld in MultiCodex.
+2. Oben rechts **Anmelden** oder links **Konten** waehlen, dann bei **Codex 1** **Mit OpenAI anmelden**. Die Anmeldung erfolgt im offiziellen Browser auf `auth.openai.com`; MultiCodex hat kein Passwortfeld.
 3. Weitere Anmeldungen hinzufuegen; mit **Konto wechseln** die Zuordnung genau dieses Profils wechseln. Die vorherige Anmeldung bleibt auswaehlbar.
 4. **Erneut anmelden** erwartet dieselbe bekannte Identitaet. Unter **Diagnose** koennen unterbrochene Umschaltungen ausdruecklich wiederhergestellt werden.
 
@@ -42,28 +44,29 @@ Wenn die offizielle Anwendung einen angeforderten normalen Fensterabschluss nich
 
 ## Entwicklungsstart auf Windows
 
-Noch keine Endbenutzer-Installationsanleitung: Es liegt keine gepruefte Setup-Datei vor.
+Der lokale Setup-Build installiert die Anwendung unter `%LOCALAPPDATA%\Programs\MultiCodex`. Python und Node werden fuer die installierte Version mitgeliefert. Fuer die Entwicklung:
 
 ```powershell
-python -m pip install -r requirements.txt
-npm install --prefix bridge --omit=dev --ignore-scripts --no-audit --no-fund
-python run.py --self-check --report runtime-check.json
-python run.py
+py -3.12 -m venv .venv
+.venv\Scripts\python.exe -m pip install --require-hashes -r requirements-build.windows-x64.lock
+npm ci --prefix bridge --omit=dev --ignore-scripts --no-audit --no-fund
+.venv\Scripts\python.exe run.py --self-check --report evidence/runtime-check.json
+.venv\Scripts\python.exe run.py
 ```
 
-Python 3.12+, Node 22.19+ und eine passende offizielle Codex-Installation werden benoetigt. Neue Anmeldungen verlangen `cli_auth_credentials_store = "keyring"`; eine automatische Klartext-Rueckfalloption ist nicht vorgesehen. Siehe [Sicherheit](docs/security.md).
+Der gepruefte Windows-Build verwendet CPython 3.12.10 x64 und Node 22.19.0. Python 3.14/Tcl 9 wird vom Paketierer derzeit abgewiesen. Eine passende offizielle Codex-Installation wird weiterhin benoetigt. Neue Anmeldungen verlangen `cli_auth_credentials_store = "keyring"`; siehe [Sicherheit](docs/security.md).
 
 ```powershell
-python -m unittest discover -s tests -v
+.venv\Scripts\python.exe -m unittest discover -s tests -v
 node --test bridge/tests/service.test.mjs
-python -m compileall -q multicodex tools run.py
-python run.py --gui-smoke --report gui-check.json
+.venv\Scripts\python.exe -m compileall -q multicodex tools run.py
+.venv\Scripts\python.exe run.py --gui-smoke --report evidence/gui-check.json
 ```
 
 `--self-check` prueft Laufzeitabhaengigkeiten und Protokoll, nicht echte Konten. `--gui-smoke` erstellt nur ein temporaeres Testprofil und rendert echte Widgets, keine echten Kontoanmeldungen. Fehlende Komponenten liefern Exitcode 1.
 
 ## Build, Design und Nachweise
 
-[Build und Release](docs/installation.md) erklaert die Windows-Pipeline und die notwendige native Freigabe fuer exakt einen Commit und Installer-Hash. [Pruefmatrix](docs/verification.md) trennt ausgefuehrte Tests von fehlender Abnahme.
+`./tools/build_windows.ps1` fuehrt den kompletten lokalen Build inklusive Installerpruefung aus. [Build und Release](docs/installation.md) erklaert Voraussetzungen und Freigabe fuer exakt einen Commit und Installer-Hash. [Pruefmatrix](docs/verification.md) trennt ausgefuehrte Tests von fehlender Abnahme.
 
 [Figma-Entwurf](https://www.figma.com/design/iKeNG6k7TfG5U98yfqKFxI), [DESIGN.md](DESIGN.md), [UX-CONTRACT.md](UX-CONTRACT.md), [Drittanbieterhinweise](THIRD_PARTY_NOTICES.md). Die Figma-Frames sind Entwuerfe, keine Screenshots dieser Windows-Anwendung.

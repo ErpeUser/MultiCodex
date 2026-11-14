@@ -15,6 +15,7 @@ from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
+from . import __version__
 
 _ERRORS = {
     'UNAVAILABLE': 'Official Codex app-server is unavailable',
@@ -100,6 +101,7 @@ class CodexClient:
         self.notifications = deque(maxlen=64)
         self._failure = None
         self._next_id = 0
+        self.cancel = None
 
     def __enter__(self):
         args = self.command + (['-c', 'cli_auth_credentials_store="keyring"'] if self.secure else []) + ['app-server']
@@ -110,7 +112,7 @@ class CodexClient:
             self.reader = threading.Thread(target=self._read, daemon=True)
             self.reader.start()
             self.request('initialize', {'clientInfo': {'name': 'multicodex', 'title': 'MultiCodex',
-                'version': '0.2.0-dev'}, 'capabilities': {'experimentalApi': False}})
+                'version': __version__}, 'capabilities': {'experimentalApi': False}})
             self._send({'method': 'initialized', 'params': {}})
             return self
         except Exception as exc:
@@ -144,8 +146,10 @@ class CodexClient:
         except (OSError, ValueError, AttributeError) as exc:
             raise CodexError('UNAVAILABLE') from exc
 
-    def _receive(self, deadline):
+    def _receive(self, deadline, cancel=None):
         while time.monotonic() < deadline:
+            if cancel is not None and cancel.is_set():
+                raise CodexError('CANCELLED')
             if self._failure:
                 raise CodexError(self._failure)
             try:
@@ -164,12 +168,15 @@ class CodexClient:
     def request(self, method, params, *, timeout=None):
         if method not in self.METHODS or not isinstance(params, dict):
             raise CodexError('PROTOCOL')
+        cancel = self.cancel if method != 'account/login/cancel' else None
+        if cancel is not None and cancel.is_set():
+            raise CodexError('CANCELLED')
         self._next_id += 1
         ident = self._next_id
         self._send({'id': ident, 'method': method, 'params': params})
         deadline = time.monotonic() + (self.timeout if timeout is None else timeout)
         while True:
-            value = self._receive(deadline)
+            value = self._receive(deadline, cancel)
             if value.get('method') == 'account/login/completed':
                 self.notifications.append(value.get('params', {}))
                 continue
@@ -246,14 +253,18 @@ class CodexAccountService:
     def client(self, home, *, secure=True):
         return CodexClient([str(self.cli_resolver())], Path(home), secure=secure)
 
-    def describe(self, home, *, secure=True, refresh=False):
-        with self.client(home, secure=secure) as client:
+    def describe(self, home, *, secure=True, refresh=False, cancel=None):
+        client = self.client(home, secure=secure)
+        client.cancel = cancel
+        with client:
             return AccountIdentity.from_response(client.request('account/read', {'refreshToken': bool(refresh)}))
 
     def login(self, home, *, on_browser, cancel, expected=None):
         if cancel.is_set():
             raise CodexError('CANCELLED')
-        with self.client(home) as client:
+        client = self.client(home)
+        client.cancel = cancel
+        with client:
             result = client.request('account/login/start', {'type': 'chatgpt'})
             login_id = result.get('loginId')
             if not isinstance(login_id, str) or not login_id or len(login_id) > 256:
@@ -267,7 +278,7 @@ class CodexAccountService:
             raise CodexError('PLAINTEXT_AUTH')
         # A fresh process must be able to read the saved keyring state. An
         # in-memory account update alone is not proof of successful persistence.
-        persisted = self.describe(home)
+        persisted = self.describe(home, cancel=cancel)
         if not identity.same_account(persisted) or (expected is not None and not expected.same_account(persisted)):
             raise CodexError('ACCOUNT_MISMATCH')
         return persisted

@@ -3,6 +3,7 @@ import json
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from multicodex.controller import SessionController, OperationError
 from multicodex.profiles import ProfileStore
@@ -76,6 +77,15 @@ class RestartTests(unittest.TestCase):
             self.ctl.login('Work',confirmed=True,on_browser=lambda u:None,cancel=threading.Event())
         self.assertEqual(self.instances.actions,[])
         self.assertEqual(self.store.get('Work').session_id,'default')
+
+    def test_cancelled_login_does_not_prepare_an_account_read(self):
+        cancel = threading.Event()
+        cancel.set()
+        with patch.object(self.auth, 'describe', side_effect=AssertionError('Cancelled login read an account')):
+            with self.assertRaises(CodexError) as caught:
+                self.ctl.login('Work', confirmed=True, on_browser=lambda _: None, cancel=cancel)
+            self.assertEqual(caught.exception.code, 'CANCELLED')
+        self.assertEqual(self.instances.actions, [])
 
     def test_wrong_identity_on_relogin_keeps_old_binding(self):
         with self.assertRaises(CodexError) as caught:

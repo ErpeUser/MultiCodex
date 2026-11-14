@@ -13,95 +13,19 @@ concurrency:
 jobs:
   build:
     name: Windows x64 tests, GUI and installer verification
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.12.10'
       - uses: actions/setup-node@v4
         with:
           node-version: '22.19.0'
-      - name: Install desktop dependencies
-        run: python -m pip install -r requirements-build.txt
-      - name: Install upstream without installer side effects
-        # Existing published dist is used. Never run upstream first-use setup.
-        # Full transitive lockfiles are a remaining release blocker, not faked.
-        run: npm install --prefix bridge --omit=dev --ignore-scripts --no-audit --no-fund
-      - name: Automated tests and syntax checks
+      - name: Locked dependencies, full tests, bundle and actual installer verification
         shell: pwsh
-        run: |
-          python -m unittest discover -s tests -v
-          if ($LASTEXITCODE -ne 0) { throw 'Python tests failed' }
-          node --test bridge/tests/service.test.mjs
-          if ($LASTEXITCODE -ne 0) { throw 'Node tests failed' }
-          python -m compileall -q multicodex tools run.py
-          if ($LASTEXITCODE -ne 0) { throw 'Python syntax check failed' }
-      - name: Runtime and real-widget source probes
-        shell: pwsh
-        run: |
-          python run.py --self-check --report evidence/source-runtime.json
-          if ($LASTEXITCODE -ne 0) { throw 'Runtime prerequisites failed' }
-          python run.py --gui-smoke --report evidence/source-gui.json
-          if ($LASTEXITCODE -ne 0) { throw 'Actual GUI probe failed' }
-      - name: Package desktop application
-        run: pyinstaller packaging/MultiCodex.spec --noconfirm --clean
-      - name: Bundle Node and preserve dependency notices
-        shell: pwsh
-        run: |
-          $runtime = 'dist/MultiCodex/runtime'
-          New-Item -ItemType Directory -Force $runtime | Out-Null
-          $node = (Get-Command node).Source
-          Copy-Item $node "$runtime/node.exe"
-          $nodeLicense = Join-Path (Split-Path $node) 'LICENSE'
-          if (!(Test-Path $nodeLicense)) { throw 'Node runtime license missing; do not distribute' }
-          Copy-Item $nodeLicense "$runtime/Node-LICENSE.txt"
-          Copy-Item bridge/service.mjs "$runtime/service.mjs"
-          Copy-Item bridge/node_modules "$runtime/node_modules" -Recurse -Force
-          Copy-Item LICENSE,THIRD_PARTY_NOTICES.md,README.md 'dist/MultiCodex/'
-          if (!(Test-Path "$runtime/node_modules/codex-multi-auth/package.json")) { throw 'Upstream module missing' }
-          Copy-Item bridge/package-lock.json evidence/resolved-node-lock.json
-          python -m pip freeze | Set-Content evidence/resolved-python-packages.txt
-      - name: Packaged executable probe with explicit process wait
-        shell: pwsh
-        run: |
-          $report = Join-Path $PWD 'evidence/packaged-runtime.json'
-          $p = Start-Process 'dist/MultiCodex/MultiCodex.exe' -ArgumentList "--self-check --report `"$report`"" -PassThru
-          if (!$p.WaitForExit(30000)) { $p.Kill($true); throw 'Packaged runtime timed out' }
-          $p.Refresh()
-          if ($p.ExitCode -ne 0) { throw 'Packaged runtime failed' }
-          if (!(Get-Content -Raw $report | ConvertFrom-Json).ready) { throw 'Packaged runtime not ready' }
-      - name: Require Inno Setup from runner image
-        shell: pwsh
-        run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (!(Test-Path $iscc)) { throw 'Inno Setup missing from runner; install a reviewed, pinned compiler before building' }
-          (Get-Item $iscc).VersionInfo.FileVersion | Set-Content evidence/inno-version.txt
-      - name: Compile setup EXE
-        shell: pwsh
-        run: |
-          $ver = (python -c "from multicodex import __version__; print(__version__)").Trim()
-          if ($ver -notmatch '^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$') { throw 'Invalid build version' }
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$ver") { throw 'Tag and source version differ' }
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$ver" packaging/MultiCodex.iss
-          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
-          if (@(Get-ChildItem output -Filter '*.exe').Count -ne 1) { throw 'Installer missing or ambiguous' }
-      - name: Install, start, upgrade and uninstall the actual setup
-        shell: pwsh
-        run: |
-          $setup = Get-ChildItem output -Filter '*.exe' | Select-Object -First 1
-          ./tools/installer_smoke.ps1 -Installer $setup.FullName -ReportDirectory evidence/installed
-      - name: Archive build evidence and checksums
-        shell: pwsh
-        run: |
-          $setup = Get-ChildItem output -Filter '*.exe' | Select-Object -First 1
-          if ($setup.Length -lt 100kb) { throw 'Suspiciously small installer' }
-          $env:GITHUB_SHA | Set-Content evidence/source-commit.txt
-          Compress-Archive -Path evidence/* -DestinationPath output/build-evidence.zip
-          Get-ChildItem output -File | ForEach-Object {
-            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
-          } | Set-Content output/SHA256SUMS.txt
+        run: ./tools/build_windows.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
@@ -126,7 +50,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.12.10'
       - uses: actions/download-artifact@v4
         with:
           name: windows-installer

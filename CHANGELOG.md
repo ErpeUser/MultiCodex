@@ -2,6 +2,18 @@
 
 ## Unreleased - 2026-11-13
 
+- Repaired the official browser sign-in flow: visible Anmelden entry, Codex 1 guidance, retryable browser launch, bounded cancellation, and no false foreground progress during background refresh.
+
+## 0.2.1-dev - 2026-11-13
+
+- Built and installed the updated Windows EXE and Setup; verified packaged runtime/GUI, installer smoke, profile preservation and exact installed executable.
+- Propagated cancellation through initial and persistence account reads and added native GUI/transport regressions.
+
+- Built and checked a local Windows 11 x64 development EXE, portable ZIP and Inno Setup installer; verified runtime, actual widgets, installation, same-version upgrade, uninstall and external-data preservation.
+- Added a single Windows build command shared with CI, a CPython 3.12.10 x64 dependency lock with wheel hashes, and an npm lock verified with install scripts disabled.
+- Fixed cyclic Tk resource cleanup running in background service threads; added a native red/green regression and UI-thread garbage collection.
+- Restricted GUI screenshots to the owned temporary test window instead of capturing potentially unrelated foreground desktop contents.
+- Bundled official Node 22.19.0 with a pinned archive checksum, Python/Node/dependency notices and retained project licenses. Full OAuth/multi-instance release acceptance remains open.
 - Published the complete verified source tree to the private `ErpeUser/MultiCodex` default branch after the archive import workflow could not obtain a runner.
 - Expanded read-only legacy profile discovery to the known local, roaming, user and `.codex/CodexProfiles` roots without recursive or browser-data scanning.
 - Prevented login fallback from treating corrupt session catalogues as a missing account identity; added a regression test for the blocked mutation path.

@@ -75,6 +75,13 @@ def _member(row):
         if value is not None and (not isinstance(value, str) or len(value)>320 or re.search(r'[\x00-\x1f\x7f]',value)):
             raise OperationError('PROVIDER_UNAVAILABLE')
         out[field] = value
+    provider_account_id = row.get('account_id')
+    if provider_account_id is not None:
+        try:
+            provider_account_id = _identifier(provider_account_id)
+        except AdminAPIError:
+            raise OperationError('PROVIDER_UNAVAILABLE') from None
+    out['account_id'] = provider_account_id
     scim = row.get('is_scim_managed')
     if scim is not None and type(scim) is not bool:
         raise OperationError('PROVIDER_UNAVAILABLE')
@@ -216,7 +223,9 @@ class WorkspaceOperations:
             account=self.quota.account(account_key)
             member=preflight['target']
             if (not member['email'] or account['email'].casefold()!=member['email'].casefold() or
-                account['workspace_id'] not in (None,workspace)):
+                account['workspace_id'] not in (None,workspace) or
+                (member.get('account_id') is not None and account.get('account_id') is not None and
+                 member['account_id'] != account['account_id'])):
                 raise OperationError('ACCOUNT_MISMATCH')
             return self.quota.prepare_removal(account_key)['snapshot_id']
         except QuotaError:

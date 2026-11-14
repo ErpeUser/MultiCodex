@@ -169,7 +169,7 @@ class QuotaStore:
                 os.close(fd)
             with self._db(write=True) as db:
                 version = db.execute('PRAGMA user_version').fetchone()[0]
-                if version not in (0, 1):
+                if version not in (0, 1, 2):
                     raise QuotaError('SCHEMA')
                 if version == 0:
                     if db.execute("SELECT 1 FROM sqlite_master WHERE type='table'").fetchone():
@@ -178,7 +178,15 @@ class QuotaStore:
                     db.execute('CREATE TABLE snapshots (snapshot_id TEXT PRIMARY KEY, account_key TEXT NOT NULL REFERENCES accounts(account_key), observed_at INTEGER NOT NULL, captured_at INTEGER NOT NULL, payload TEXT NOT NULL)')
                     db.execute('CREATE INDEX snapshot_account_time ON snapshots(account_key, observed_at DESC, captured_at DESC)')
                     db.execute('CREATE TABLE events (event_id INTEGER PRIMARY KEY, account_key TEXT NOT NULL REFERENCES accounts(account_key), occurred_at INTEGER NOT NULL, kind TEXT NOT NULL, code TEXT NOT NULL)')
-                    db.execute('PRAGMA user_version = 1')
+                    db.execute('PRAGMA user_version = 2')
+                elif version == 1:
+                    required = {'accounts', 'snapshots', 'events'}
+                    found = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                    if not required.issubset(found):
+                        raise QuotaError('SCHEMA')
+                    # Version 2 adds only JSON fields with backward-compatible
+                    # defaults; advancing the marker is the complete migration.
+                    db.execute('PRAGMA user_version = 2')
                 else:
                     required = {'accounts', 'snapshots', 'events'}
                     found = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}

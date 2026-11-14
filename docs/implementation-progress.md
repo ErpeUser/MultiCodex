@@ -11,8 +11,10 @@ This log records only checks actually performed. A remote, Windows, OAuth, Figma
 - Status: **complete**
 - Repository: private `ErpeUser/MultiCodex`
 - Required branch: exists and is unprotected
-- Remote HEAD: `b6eb61d1c1415c407c9a6018227a4d3f5ef0b859`
-- Last commit: `feat: ship offline editable Figma reference plugin and strict native DPI evidence`
+- Starting remote HEAD: `b6eb61d1c1415c407c9a6018227a4d3f5ef0b859`
+- Current remote HEAD after the progress-log commit: `f7f8739a2ad8098a3925ecde602a8b1e851b8077`
+- Starting commit: `feat: ship offline editable Figma reference plugin and strict native DPI evidence`
+- Progress commit: `docs: record initial implementation verification progress`
 - Authenticated permission: admin/maintain/push confirmed for `ErpeUser`
 
 ## Step 002 / 157 — Project rules
@@ -24,7 +26,7 @@ This log records only checks actually performed. A remote, Windows, OAuth, Figma
 ## Step 003 / 157 — Existing-function inventory
 
 - Status: **complete**
-- Inspected the recursive repository tree at the branch HEAD.
+- Inspected the recursive repository tree at the starting branch HEAD.
 - Existing areas confirmed: quota provider/store/service/monitor/UI, profiles/sessions/processes/activation, workspace administration, GUI/design tooling, tests, packaging, and both feature/Windows workflows.
 - No duplicate subsystem was introduced.
 
@@ -38,17 +40,18 @@ This log records only checks actually performed. A remote, Windows, OAuth, Figma
 ## Step 005 / 157 — GitHub Actions failure investigation
 
 - Status: **complete; external runner issue**
-- Run `43634563144` for commit `b6eb61d1c1415c407c9a6018227a4d3f5ef0b859` completed with `failure` before any job step ran.
+- Run `43634563144` for the starting commit completed with `failure` before any job step ran.
 - Observed: `runner_id: 0`, empty `steps`, approximately four seconds total runtime.
-- This does not identify a test failure. It is consistent with runner/account availability and must remain separate from code correctness.
-- Combined commit status is empty.
+- The new progress-log push triggered feature run `43642979119` and Windows run `43642979081`; both also completed in failure before executing steps.
+- These runs do not identify a test failure. They are consistent with runner/account availability and must remain separate from code correctness.
+- Combined status for the progress commit is empty.
 
 ## Step 006 / 157 — CI configuration correction
 
 - Status: **reviewed; no safe code correction identified**
 - `.github/workflows/feature-checks.yml` uses conventional checkout, pinned Python/Node versions, dependency installation, xvfb-backed tests, compile checks, GUI smoke, and artifact upload.
 - `.github/workflows/windows.yml` uses the Windows build script and preserves diagnostics on failure.
-- Because the observed failure occurred before steps began, changing workflow logic would be speculative. The external runner/account blocker remains open.
+- Because the observed failures occurred before steps began, changing workflow logic would be speculative. The external runner/account blocker remains open.
 
 ## Step 007 / 157 — Dependency hardening
 
@@ -60,9 +63,11 @@ This log records only checks actually performed. A remote, Windows, OAuth, Figma
 
 ## Step 008 / 157 — Progress log
 
-- Status: **in progress**
-- This file is being added as the first repository mutation.
-- Next executable step after remote confirmation: Step 009, account identity review.
+- Status: **complete**
+- Added `docs/implementation-progress.md` and pushed it as commit `f7f8739a2ad8098a3925ecde602a8b1e851b8077`.
+- Remote branch readback confirmed the commit and parent relationship.
+- CI was triggered but remains blocked before job steps by the external runner/account failure described above.
+- Next executable step: Step 009, account identity review.
 
 ## Open blockers
 

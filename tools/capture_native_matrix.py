@@ -20,6 +20,14 @@ from tools.native_evidence import (DPI_PERCENT, EvidenceError, _safe_path, captu
 def _window_dpi(window: int) -> int:
     import ctypes
     from ctypes import wintypes
+    get_context = ctypes.windll.user32.GetWindowDpiAwarenessContext
+    get_context.argtypes = [wintypes.HWND]
+    get_context.restype = ctypes.c_void_p
+    get_awareness = ctypes.windll.user32.GetAwarenessFromDpiAwarenessContext
+    get_awareness.argtypes = [ctypes.c_void_p]
+    get_awareness.restype = ctypes.c_int
+    if get_awareness(get_context(window)) != 2:
+        raise EvidenceError('PER_MONITOR_DPI_REQUIRED')
     get_dpi = ctypes.windll.user32.GetDpiForWindow
     get_dpi.argtypes = [wintypes.HWND]
     get_dpi.restype = wintypes.UINT
@@ -76,7 +84,7 @@ def capture(root: Path, output: Path, setup: Path, commit: str, percent: int) ->
                 image = ImageGrab.grab(window=app.winfo_id())
                 image.save(path, format='PNG')
                 rows.append({**item, 'native_dpi': dpi, 'image_size': list(image.size),
-                             'sha256': file_hash(path)})
+                             'dpi_awareness': 'per-monitor', 'sha256': file_hash(path)})
         finally:
             app.closing = True
             app._shutdown()

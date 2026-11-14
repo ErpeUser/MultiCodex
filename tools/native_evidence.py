@@ -160,7 +160,8 @@ def validate_capture(folder: Path, commit: str, setup_hash: str) -> dict:
                 raise EvidenceError('INVALID_CAPTURE')
             seen.add(name)
             if (any(row.get(k) != v for k, v in expected[name].items()) or
-                    type(row.get('native_dpi')) is not int or row['native_dpi'] != percent * 96 // 100):
+                    type(row.get('native_dpi')) is not int or row['native_dpi'] != percent * 96 // 100 or
+                    row.get('dpi_awareness') != 'per-monitor'):
                 raise EvidenceError('CAPTURE_MATRIX_MISMATCH')
             path = _safe_path(folder / name)
             if row.get('sha256') != file_hash(path):

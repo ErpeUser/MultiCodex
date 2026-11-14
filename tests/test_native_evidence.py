@@ -52,7 +52,7 @@ class EvidenceTests(unittest.TestCase):
                     Image.new('RGB', (320, 240)).save(path)
                     rows.append({'page': page, 'theme': theme, 'window_size': list(size),
                                  'file': name, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
-                                 'native_dpi': percent * 96 // 100, 'image_size': [320, 240]})
+                                 'native_dpi': percent * 96 // 100, 'dpi_awareness': 'per-monitor', 'image_size': [320, 240]})
         manifest = {'schema': 1, 'source_commit': COMMIT, 'setup_sha256': self.sha,
                     'platform': 'win32', 'capture_kind': 'owned-window',
                     'dpi_percent': percent, 'files': rows}
@@ -127,6 +127,14 @@ class EvidenceTests(unittest.TestCase):
         manifest['files'][0]['native_dpi'] = 96
         put(folder / 'manifest.json', manifest)
         with self.assertRaises(ne.EvidenceError): self.collect([folder])
+
+    def test_unaware_or_unrecorded_dpi_context_is_not_native_dpi_evidence(self):
+        folder, manifest = self.capture()
+        for awareness in ('unaware', 'system', None):
+            with self.subTest(awareness=awareness):
+                manifest['files'][0]['dpi_awareness'] = awareness
+                put(folder / 'manifest.json', manifest)
+                with self.assertRaises(ne.EvidenceError): self.collect([folder])
 
     def test_duplicate_dpi_directory_does_not_inflate_coverage(self):
         folder, _ = self.capture()

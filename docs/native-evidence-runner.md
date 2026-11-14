@@ -38,7 +38,9 @@ pwsh -NoProfile -File tools/verify_native.ps1 -CaptureOnly -Dpi 200
 
 Do not rebuild between these commands: every capture must cover the same source
 and installer bytes. The application window's DPI is measured with
-`GetDpiForWindow` for every screenshot. A requested/mapped DPI mismatch is an
+`GetDpiForWindow` for every screenshot, after requiring a per-monitor-aware
+window via `GetWindowDpiAwarenessContext` / `GetAwarenessFromDpiAwarenessContext`.
+An unaware/system-aware window is rejected rather than treated as a 100% proof. A requested/mapped DPI mismatch is an
 error; changing Tk scaling does not substitute for a native display change.
 
 Each group captures all six application pages, dark/light and 900x640/1180x760

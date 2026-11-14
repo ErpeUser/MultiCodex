@@ -22,6 +22,7 @@ from .runtime import LocalInstances
 from .settings import SettingsStore
 from .ui_tokens import THEMES, PADDING, NAV_WIDTH
 from . import __version__
+from .quota_gui import QuotaGuiController
 
 PAGES = ['Overview', 'Accounts', 'Instances', 'Usage', 'Diagnostics', 'Settings']
 LABELS = dict(zip(PAGES, ['\u00dcbersicht', 'Konten', 'Instanzen', 'Nutzung', 'Diagnose', 'Einstellungen']))
@@ -64,6 +65,7 @@ class MultiCodexApp(ctk.CTk):
         self._poll_id = None
         self._refresh_id = None
         self._progress_running = False
+        self.quota = QuotaGuiController(self, root)
         self._build_shell()
         self._render()
         self.protocol('WM_DELETE_WINDOW', self._close)
@@ -87,6 +89,9 @@ class MultiCodexApp(ctk.CTk):
             self._gc_id = self.after(1000, self._collect_garbage)
 
     def destroy(self):
+        quota = self.__dict__.get('quota')
+        if quota is not None:
+            quota.close()
         identity = self.__dict__.get('_gc_id')
         if identity is not None:
             self.after_cancel(identity)
@@ -177,7 +182,7 @@ class MultiCodexApp(ctk.CTk):
             'Overview': 'Getrennte Profile. Nur die ausgew\u00e4hlte Instanz wird neu gestartet.',
             'Accounts': 'Gespeicherte Anmeldungen je Profil; der vorhandene globale Pool bleibt unver\u00e4ndert.',
             'Instances': 'Start und Ende werden anhand des konkreten Profilpfads gepr\u00fcft.',
-            'Usage': 'Nur gemeldete Werte der offiziellen Anwendung. Keine Sch\u00e4tzungen.',
+            'Usage': 'Live-Messungen, gespeicherte Historie und getrennte Reset-Zeiten.',
             'Diagnostics': 'Fehlerzust\u00e4nde und offene Wiederherstellungen, ohne Zugangsdaten.',
             'Settings': 'Darstellung und lokaler Speicherort.',
         }
@@ -230,6 +235,7 @@ class MultiCodexApp(ctk.CTk):
         self._line(card, f'{len(profiles)} Profile   |   {"?" if unknown else running} laufend   |   {total_sessions} gespeicherte Anmeldungen')
         if os.name != 'nt':
             self._line(card, 'Desktop-Instanzen ben\u00f6tigen Windows. Diese Umgebung kann ihre Funktion nicht best\u00e4tigen.', muted=True)
+        self.quota.summary()
         self._draw_profiles()
         if self.view['issues']:
             card = self._panel('Pr\u00fcfung erforderlich')
@@ -311,8 +317,13 @@ class MultiCodexApp(ctk.CTk):
                 self._line(card, f'{row.get("label") or row.get("email") or "Konto"}  |  {status}')
 
     def _page_usage(self):
+        self.quota.render()
+        if any(p.linked for p in self.view['profiles']):
+            self._page_legacy_usage()
+
+    def _page_legacy_usage(self):
         card = self._panel('Profil ausw\u00e4hlen', 'Die offizielle Codex-Anwendung fragt die Limits des gew\u00e4hlten Profils ab.')
-        self._actions(card, [(p.name, lambda n=p.name: self._load_usage(n)) for p in self.view['profiles']])
+        self._actions(card, [(p.name, lambda n=p.name: self._load_usage(n)) for p in self.view['profiles'] if p.linked])
         if self.usage_data is None:
             self._line(card, 'Noch keine Nutzungswerte abgefragt.', muted=True)
         else:
@@ -321,6 +332,7 @@ class MultiCodexApp(ctk.CTk):
                 self._line(card, text)
 
     def _page_diagnostics(self):
+        self.quota.diagnostics()
         card = self._panel('Laufzeit und Abh\u00e4ngigkeiten')
         if self.health_data is None:
             self._line(card, 'Noch nicht gepr\u00fcft.', muted=True)
@@ -342,6 +354,7 @@ class MultiCodexApp(ctk.CTk):
         self._line(card, 'Unterst\u00fctzter Erkennungspfad: OpenAI.Codex MSIX, app/ChatGPT.exe. Andere und kombinierte ChatGPT-Builds werden nicht erraten. Echte Windows-/OAuth-Abnahme steht aus.', muted=True)
 
     def _page_settings(self):
+        self.quota.settings_view()
         card = self._panel('Darstellung', 'Die Auswahl bleibt nach dem Neustart erhalten.')
         self._actions(card, [('Dunkel', lambda: self._set_theme('dark')), ('Hell', lambda: self._set_theme('light'))])
         if self.settings.problem:
@@ -374,7 +387,7 @@ class MultiCodexApp(ctk.CTk):
             self.cancel_button.configure(state='normal' if not self.login_cancel.is_set() else 'disabled')
         else:
             self.cancel_button.grid_remove()
-        foreground = busy or any(key not in {'snapshot', 'pool', 'discovery'} for key in self.callbacks)
+        foreground = busy or self.quota.foreground or any(key not in {'snapshot', 'pool', 'discovery', 'quota-monitor'} for key in self.callbacks)
         if foreground and not self._progress_running:
             self.progress.grid()
             self.progress.start(); self._progress_running = True
@@ -430,6 +443,7 @@ class MultiCodexApp(ctk.CTk):
         if self.closing or self.mutating:
             return
         self._submit('snapshot', self.services.snapshot, self._snapshot_loaded)
+        self.quota.refresh()
         if include_pool:
             self._submit('pool', self.accounts.list_accounts, self._pool_loaded, error_callback=self._pool_failed)
 
@@ -621,6 +635,7 @@ class MultiCodexApp(ctk.CTk):
         if self.jobs.pending and not messagebox.askyesno('Laufende Aktion', 'Laufende Anmeldung abbrechen und das Verwaltungsfenster nach Abschluss beenden? Ge\u00f6ffnete Desktop-Instanzen bleiben bestehen.', parent=self):
             return
         self.closing = True
+        self.quota.close()
         if self.login_cancel is not None:
             self.login_cancel.set()
         if self._refresh_id is not None:

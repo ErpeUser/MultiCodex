@@ -47,6 +47,26 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(out['windows'][0], {'label':'primary','used_percent':42,'minutes':300,'reset_at':18000})
         self.assertEqual(out['reported'], {'primary':True,'secondary':True})
 
+    def test_reset_credits_are_sanitized_as_snapshot_metadata(self):
+        data = limits()
+        data['rateLimitResetCredits'] = {
+            'availableCount': 2,
+            'credits': [{
+                'id': 'credit-1', 'resetType': 'codexRateLimits', 'status': 'available',
+                'grantedAt': 1000, 'expiresAt': 2000,
+                'title': 'Full reset', 'description': 'Ready to redeem',
+            }],
+        }
+        out = self.mod.sanitize_limits(data)
+        self.assertEqual(out['reset_credits'], {
+            'available_count': 2,
+            'credits': [{
+                'id': 'credit-1', 'reset_type': 'codexRateLimits', 'status': 'available',
+                'granted_at': 1000, 'expires_at': 2000,
+                'title': 'Full reset', 'description': 'Ready to redeem',
+            }],
+        })
+
     def test_null_window_differs_from_omitted_window(self):
         data = limits(); data['rateLimits']['primary'] = None; del data['rateLimits']['secondary']
         out = self.mod.sanitize_limits(data)

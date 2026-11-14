@@ -16,6 +16,7 @@ class ContextTests(unittest.TestCase):
 
     def test_registration_does_not_claim_a_live_login(self):
         self.assertIsNone(self.store.account(self.key)['last_verified_at'])
+        self.assertEqual(self.store.account(self.key)['active_session_id'], 'default')
 
     def test_live_snapshot_records_capture_freshness_and_verification(self):
         snap=self.store.capture(self.key,self.data,observed_at=1100)

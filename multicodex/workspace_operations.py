@@ -216,7 +216,8 @@ class WorkspaceOperations:
         return {'target':invitation}
 
     def _snapshot(self, action, workspace, body, preflight, account_key):
-        required=action=='remove_user' or action=='update_user' and 'seat_type' in body
+        required=(action=='remove_user' or
+                  action=='update_user' and bool({'seat_type', 'role'} & set(body or {})))
         if not required:return None
         if account_key is None:raise OperationError('SNAPSHOT_REQUIRED')
         try:

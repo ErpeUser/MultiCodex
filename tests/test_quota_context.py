@@ -17,6 +17,11 @@ class ContextTests(unittest.TestCase):
     def test_registration_does_not_claim_a_live_login(self):
         self.assertIsNone(self.store.account(self.key)['last_verified_at'])
 
+    def test_live_snapshot_records_capture_freshness_and_verification(self):
+        snap=self.store.capture(self.key,self.data,observed_at=1100)
+        self.assertEqual(snap['freshness'],'LIVE_VERIFIED')
+        self.assertEqual(snap['verification_state'],'VERIFIED')
+
     def test_restoration_in_same_second_invalidates_previous_observation(self):
         self.store.capture(self.key,self.data,observed_at=1100)
         self.store.record_access(self.key,'ACCESS_REMOVED',now=1100)

@@ -2,7 +2,7 @@
 
 - Repository: `ErpeUser/MultiCodex` (private)
 - Branch: `main`
-- Current HEAD: `54962a3c44d8d269f83f328d40d777ef0605b992` (pushed and verified against `origin/main`).
+- Current HEAD: `479da56c3491b149b97a604d4953006827c5df09` (pushed and verified against `origin/main`).
 - Machine-readable register: [`docs/implementation-status.json`](implementation-status.json).
 
 ## Current main verification (2026-11-14)

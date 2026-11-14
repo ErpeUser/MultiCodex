@@ -42,6 +42,16 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(snap['plan_type'],'pro')
         self.assertEqual(self.store.account(self.key)['last_verified_at'],1100)
 
+    def test_reset_credits_are_retained_in_quota_history(self):
+        data={**self.data,'reset_credits':{
+            'available_count':1,
+            'credits':[{'id':'credit-1','reset_type':'codexRateLimits','status':'available',
+                        'granted_at':1000,'expires_at':2000,'title':'Full reset',
+                        'description':'Ready'}],
+        }}
+        self.store.capture(self.key,data,observed_at=1100)
+        self.assertEqual(self.store.latest(self.key)['reset_credits'],data['reset_credits'])
+
     def test_late_plan_observation_keeps_newer_current_plan_and_verification(self):
         self.store.capture(self.key,self.data,observed_at=2000,observed_plan='pro')
         self.store.capture(self.key,self.data,observed_at=1500,observed_plan='business')

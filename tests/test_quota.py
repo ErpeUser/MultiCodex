@@ -55,6 +55,7 @@ class QuotaDecisionTests(unittest.TestCase):
     def test_restore_access_requires_observation_after_change(self):
         self.account['access_changed_at']=1040
         self.assertEqual(self.run_view()['status'],'VERIFICATION_REQUIRED')
+        self.assertFalse(self.run_view(observed_at=1040)['capacity_confirmed'])
         self.assertTrue(self.run_view(observed_at=1045)['capacity_confirmed'])
 
     def test_expired_session_is_not_usable(self):

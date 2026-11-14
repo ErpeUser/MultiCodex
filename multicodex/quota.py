@@ -87,7 +87,7 @@ def evaluate_snapshot(snapshot, account=None, *, now=None, max_age_seconds=120,
     values = [w['used_percent'] for w in present if w['used_percent'] is not None]
     result['max_used_percent'] = max(values) if values else None
     changed = (account.get('context_revision', 0) != snapshot.get('context_revision', 0) or any(account.get(k) != snapshot.get(k) for k in ('plan_type','seat_type') if k in account) or
-               type(account.get('access_changed_at')) is int and account['access_changed_at'] > observed)
+               type(account.get('access_changed_at')) is int and account['access_changed_at'] >= observed)
     denied = (snapshot.get('ordinary_usage_allowed') is False or
               snapshot.get('spend_control_reached') is True or
               bool(snapshot.get('rate_limit_reached_type')))

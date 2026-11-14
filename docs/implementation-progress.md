@@ -2,7 +2,7 @@
 
 - Repository: `ErpeUser/MultiCodex` (private)
 - Branch: `main`
-- Current HEAD: `c4741379c76b7a53a6ff9767b9228295976bfc85` (pushed and verified against `origin/main`).
+- Current HEAD: `54962a3c44d8d269f83f328d40d777ef0605b992` (pushed and verified against `origin/main`).
 - Machine-readable register: [`docs/implementation-status.json`](implementation-status.json).
 
 ## Current main verification (2026-11-14)
@@ -14,6 +14,8 @@ The historical 157-step register below remains the audit baseline. The current
 - Node bridge: 8 tests passed, 1 host-dependent test skipped.
 - Python compileall and whitespace checks passed.
 - GUI smoke: all 12 views rendered in dark/light themes at 900x640 and 1180x760.
+- Windows build: locked Python/Node build, PyInstaller, Inno Setup, installed runtime/GUI, upgrade and uninstall smoke passed.
+- Native evidence: 24 owned-window captures at the actual 125% display scale; 100/150/200% and manual acceptance remain open.
 - GitHub: only `main` remains; no open pull requests; `main` matches `origin/main`.
 
 External acceptance gates remain open where the register requires real Windows
@@ -27,9 +29,9 @@ This is the exact 157-step execution record from the attached contract. Historic
 | Status | Count |
 |---|---:|
 | `BEREITS_VERIFIZIERT` | 2 |
-| `IMPLEMENTIERT_ABNAHME_OFFEN` | 128 |
-| `BLOCKIERT_EXTERN` | 26 |
-| `OFFEN` | 1 |
+| `IMPLEMENTIERT_ABNAHME_OFFEN` | 132 |
+| `BLOCKIERT_EXTERN` | 23 |
+| `OFFEN` | 0 |
 
 The counts sum to 157. Full required fields are in `implementation-status.json`.
 
@@ -40,7 +42,7 @@ The counts sum to 157. Full required fields are in `implementation-status.json`.
 | 001 | GitHub-Basis prüfen | BEREITS_VERIFIZIERT | GitHub metadata; AGENTS.md; workflows |
 | 002 | Projektregeln auswerten | BEREITS_VERIFIZIERT | GitHub metadata; AGENTS.md; workflows |
 | 003 | Bestehende Funktionen inventarisieren | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
-| 004 | Vollständige Testsuite ausführen | BLOCKIERT_EXTERN | quota*.py; tests/test_quota*.py |
+| 004 | Vollständige Testsuite ausführen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
 | 005 | GitHub-Actions-Fehler untersuchen | BLOCKIERT_EXTERN | quota*.py; tests/test_quota*.py |
 | 006 | CI-Konfiguration korrigieren | BLOCKIERT_EXTERN | quota*.py; tests/test_quota*.py |
 | 007 | Abhängigkeiten absichern | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
@@ -57,7 +59,7 @@ The counts sum to 157. Full required fields are in `implementation-status.json`.
 | 018 | Snapshot-Identität validieren | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
 | 019 | Unbekannten Workspace nicht per E-Mail übernehmen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
 | 020 | Externe Statusänderungen berücksichtigen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
-| 021 | Nach Wiederaufnahme verifizieren | OFFEN | quota*.py; tests/test_quota*.py |
+| 021 | Nach Wiederaufnahme verifizieren | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
 | 022 | Protokollversion erkennen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
 | 023 | Fünf-Stunden-Fenster korrekt zuordnen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
 | 024 | Wochenfenster korrekt zuordnen | IMPLEMENTIERT_ABNAHME_OFFEN | quota*.py; tests/test_quota*.py |
@@ -150,7 +152,7 @@ The counts sum to 157. Full required fields are in `implementation-status.json`.
 | 111 | Idempotenz und Doppelaktionsschutz | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
 | 112 | Readback und unbekannte Ergebnisse | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
 | 113 | Vollständiges Operationsjournal | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
-| 114 | Workspace-Gesamttests | BLOCKIERT_EXTERN | workspace*.py; tests/test_workspace*.py |
+| 114 | Workspace-Gesamttests | IMPLEMENTIERT_ABNAHME_OFFEN | workspace*.py; tests/test_workspace*.py |
 | 115 | Gemeinsame GUI-Komponenten | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
 | 116 | Dashboard: Accountzahlen | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
 | 117 | Dashboard: Instanzen | IMPLEMENTIERT_ABNAHME_OFFEN | gui.py; *ui.py; tests/test_*ui*.py |
@@ -189,7 +191,7 @@ The counts sum to 157. Full required fields are in `implementation-status.json`.
 | 150 | Figma-Zustandsvarianten | BLOCKIERT_EXTERN | design/figma/*; tests/test_figma_package.py |
 | 151 | Reales Figma-Ergebnis verifizieren | BLOCKIERT_EXTERN | design/figma/*; tests/test_figma_package.py |
 | 152 | Figma und echte GUI vergleichen | BLOCKIERT_EXTERN | design/figma/*; tests/test_figma_package.py |
-| 153 | Vollständige Windows-Tests | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |
+| 153 | Vollständige Windows-Tests | IMPLEMENTIERT_ABNAHME_OFFEN | build_windows.ps1; verify_native.ps1; workflows |
 | 154 | Native GUI-Abnahme | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |
 | 155 | Windows-DPI-Matrix | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |
 | 156 | Echter Login- und Multi-Instanz-Test | BLOCKIERT_EXTERN | build_windows.ps1; verify_native.ps1; workflows |

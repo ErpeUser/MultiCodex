@@ -6,5 +6,12 @@
   "description": "Local, redacted RPC bridge to published codex-multi-auth APIs",
   "engines": {"node": ">=22.19.0"},
   "dependencies": {"codex-multi-auth": "2.26.0"},
-  "scripts": {"test": "node --test tests/*.test.mjs"}
+  "scripts": {"test": "node --test tests/*.test.mjs"},
+  "overrides": {
+    "codex-multi-auth@2.26.0": {
+      "hono": "4.13.16",
+      "undici": "8.12.2",
+      "zod": "4.6.6"
+    }
+  }
 }

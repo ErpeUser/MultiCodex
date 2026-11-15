@@ -72,6 +72,26 @@ class SessionStore:
             raise ProfileError('Managed sign-ins require keyring storage, without file fallback')
         return home
 
+    def home_fingerprint(self, name, session_id):
+        """Return a validated home and immutable metadata for the next I/O step."""
+        home = self.home(name, session_id)
+        config = home / 'config.toml'
+        try:
+            home_stat = home.stat()
+            config_stat = config.stat()
+            auth = home / 'auth.json'
+            return home, (home_stat.st_dev, home_stat.st_ino, config_stat.st_size,
+                          config_stat.st_mtime_ns, auth.exists())
+        except OSError as exc:
+            raise ProfileError('Authentication home is unavailable') from exc
+
+    def revalidate_home(self, name, session_id, fingerprint):
+        """Recheck redirect, keyring-only policy and metadata before provider I/O."""
+        home, current = self.home_fingerprint(name, session_id)
+        if current != fingerprint:
+            raise ProfileError('Authentication home changed during operation')
+        return home
+
     def prepare(self, name):
         with self.lock(name):
             entry = self._entry(name)

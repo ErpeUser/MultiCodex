@@ -27,7 +27,24 @@ SPACING = {'xs': 4, 'sm': 8, 'md': 12, 'lg': 16, 'xl': 24, 'xxl': 32}
 CONTROL_HEIGHT = {'compact': 32, 'default': 36, 'primary': 40}
 RADIUS_SCALE = {'control': 8, 'panel': 12, 'large': 16}
 TYPE_SCALE = {'title': 26, 'section': 17, 'body': 13, 'caption': 12, 'micro': 11}
-BREAKPOINTS = {'compact_content': 640, 'stack_content': 700, 'wide_content': 900}
+BREAKPOINTS = {
+    'compact': 620, 'stack': 700, 'wide': 900,
+    'compact_content': 640, 'stack_content': 700, 'wide_content': 900,
+}
+TEXT_SIZE = {
+    'title': TYPE_SCALE['title'], 'section': TYPE_SCALE['section'],
+    'body': TYPE_SCALE['body'], 'label': TYPE_SCALE['micro'], 'caption': 11,
+}
+STATUS_COLORS = {
+    'success': {'dark': '#8FD3C7', 'light': '#1E625B'},
+    'warning': {'dark': '#F2C879', 'light': '#8A5A00'},
+    'danger': {'dark': '#F28B82', 'light': '#A62B24'},
+    'info': {'dark': '#9CC9E8', 'light': '#1F5D86'},
+}
+
+def status_color(theme, status):
+    """Return a semantic state color; state text remains mandatory in views."""
+    return STATUS_COLORS.get(status, STATUS_COLORS['info'])[theme]
 STATUS_TEXT = {
     'running': 'Läuft', 'idle': 'Bereit', 'unknown': 'Unbekannt',
     'invalidated': 'Ungültig', 'disabled': 'Deaktiviert',

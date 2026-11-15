@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 from .quota_ui import _label, _button, _table_style, _family
 from .quota_view import window_text, display_windows, FRESHNESS_TEXT
-from .ui_tokens import THEMES
+from .ui_tokens import THEMES, BREAKPOINTS
 
 
 def dashboard_metrics(view, quota, *, loaded):
@@ -92,21 +92,23 @@ class ActionTable(tk.Frame):
     def __init__(self,master,*,title,columns,actions,on_action,theme='dark'):
         p=THEMES[theme];super().__init__(master,bg=p['canvas'])
         self.p=p;self.rows={};self.busy=False;self.loaded=False;self.on_action=on_action;self.page=0;self.offset=0
-        self._restoring=False;self.columns=columns;self.grid_columnconfigure(0,weight=1)
+        self._restoring=False;self.columns=columns;self.grid_columnconfigure(0,weight=1);self.grid_rowconfigure(2,weight=1)
         prefix=_table_style(self,theme)
         _label(self,title,p,size=17,bold=True).grid(row=0,column=0,sticky='w',pady=(0,10))
         controls=tk.Frame(self,bg=p['canvas']);controls.grid(row=1,column=0,sticky='ew',pady=(0,9));controls.grid_columnconfigure(0,weight=1)
+        self.controls=controls;self._control_columns=3
         self.query=tk.StringVar(self);self.filter=tk.StringVar(self,value='Alle');self.order=tk.StringVar(self,value=columns[0][1])
         self.search=tk.Entry(controls,textvariable=self.query,bg=p['panel'],fg=p['text'],insertbackground=p['text'],
             relief='flat',highlightthickness=1,highlightcolor=p['accent'],highlightbackground=p['border'],font=(_family(self),10),width=16)
         self.search.grid(row=1,column=0,sticky='ew',ipady=6,padx=(0,8))
-        _label(controls,'Suchen',p,size=9,muted=True).grid(row=0,column=0,sticky='w')
-        _label(controls,'Status',p,size=9,muted=True).grid(row=0,column=1,sticky='w')
-        _label(controls,'Sortierung',p,size=9,muted=True).grid(row=0,column=2,sticky='w')
+        self.control_labels=[_label(controls,'Suchen',p,size=9,muted=True),
+            _label(controls,'Status',p,size=9,muted=True),_label(controls,'Sortierung',p,size=9,muted=True)]
+        for index,label in enumerate(self.control_labels):label.grid(row=0,column=index,sticky='w')
         self.filter_combo=ttk.Combobox(controls,textvariable=self.filter,state='readonly',values=['Alle'],width=18,style=prefix+'.TCombobox')
         self.filter_combo.grid(row=1,column=1,sticky='ew',ipady=4,padx=(0,8))
-        ttk.Combobox(controls,textvariable=self.order,state='readonly',values=[c[1] for c in columns],width=18,
-            style=prefix+'.TCombobox').grid(row=1,column=2,sticky='ew',ipady=4)
+        self.order_combo=ttk.Combobox(controls,textvariable=self.order,state='readonly',values=[c[1] for c in columns],width=18,
+            style=prefix+'.TCombobox')
+        self.order_combo.grid(row=1,column=2,sticky='ew',ipady=4)
         box=tk.Frame(self,bg=p['canvas']);box.grid(row=2,column=0,sticky='nsew');box.grid_columnconfigure(0,weight=1)
         self.table=ttk.Treeview(box,columns=[c[0] for c in columns],show='headings',height=7,selectmode='browse',style=prefix+'.Treeview')
         for key,label,width in columns:self.table.heading(key,text=label);self.table.column(key,width=width,minwidth=90,stretch=True)
@@ -120,18 +122,55 @@ class ActionTable(tk.Frame):
         self.next_button=_button(paging,'Weiter',lambda:self._page(1),p);self.next_button.pack(side='left')
         self.detail=_label(self,'Zeile ausw\u00e4hlen, um die vollst\u00e4ndige Identit\u00e4t und Aktionen zu sehen.',p,muted=True,size=9)
         self.detail.grid(row=5,column=0,sticky='ew',pady=(10,6))
-        buttons=tk.Frame(self,bg=p['canvas']);buttons.grid(row=6,column=0,sticky='ew')
+        buttons=tk.Frame(self,bg=p['canvas']);buttons.grid(row=6,column=0,sticky='ew');self.buttons_frame=buttons
         for c in (0,1):buttons.grid_columnconfigure(c,weight=1,uniform='actions')
         self.buttons={}
         for index,(action,label) in enumerate(actions):
             button=_button(buttons,label,lambda a=action:self._action(a),p);self.buttons[action]=button
             button.grid(row=index//2,column=index%2,sticky='ew',padx=(0,8) if index%2==0 else 0,pady=3)
+        self._action_items=list(self.buttons.values());self._action_columns=2
         self.table.bind('<<TreeviewSelect>>',lambda _e:self._selection())
+        self.table.bind('<Return>',lambda _e:self._invoke_first())
+        self.table.bind('<space>',lambda _e:self._invoke_first())
         for var in (self.query,self.filter,self.order):var.trace_add('write',lambda *_:self._changed())
-        self.bind('<Configure>',lambda e:self.detail.configure(wraplength=max(200,e.width-10)))
+        self.bind('<Configure>',self._resize)
         self.search.bind('<Escape>',lambda _e:self.query.set(''))
         self.table.bind('<Control-f>',lambda _e:self.search.focus_set())
         self._selection()
+
+    def _resize(self,event):
+        if event.widget is not self:
+            return
+        width=max(240,event.width-10)
+        self.detail.configure(wraplength=width)
+        compact=width < BREAKPOINTS['compact']
+        columns=1 if compact else 3
+        if columns != self._control_columns:
+            self._control_columns=columns
+            for widget in self.control_labels + [self.search,self.filter_combo,self.order_combo]:widget.grid_forget()
+            if compact:
+                for row,(label,widget) in enumerate(zip(self.control_labels,[self.search,self.filter_combo,self.order_combo])):
+                    label.grid(row=row*2,column=0,sticky='w',pady=(0,2))
+                    widget.grid(row=row*2+1,column=0,sticky='ew',ipady=5,pady=(0,5))
+            else:
+                for index,label in enumerate(self.control_labels):label.grid(row=0,column=index,sticky='w')
+                self.search.grid(row=1,column=0,sticky='ew',ipady=6,padx=(0,8))
+                self.filter_combo.grid(row=1,column=1,sticky='ew',ipady=4,padx=(0,8))
+                self.order_combo.grid(row=1,column=2,sticky='ew',ipady=4)
+        action_columns=1 if width < BREAKPOINTS['compact'] else 2
+        if action_columns != self._action_columns:
+            self._action_columns=action_columns
+            for column in range(2):self.buttons_frame.grid_columnconfigure(column,weight=1 if column<action_columns else 0,uniform='actions')
+            for index,button in enumerate(self._action_items):
+                button.grid_forget()
+                button.grid(row=index//action_columns,column=index%action_columns,sticky='ew',padx=(0,8) if index%action_columns==0 else 0,pady=3)
+
+    def _invoke_first(self):
+        selected=self.table.selection();row=self.rows.get(selected[0]) if selected else None
+        if not row or self.busy:return 'break'
+        action=next((action for action in self.buttons if action in row.get('actions',())),None)
+        if action:self._action(action)
+        return 'break'
 
     def get_state(self):
         selected=self.table.selection()
@@ -182,3 +221,4 @@ class ActionTable(tk.Frame):
     def _action(self,action):
         selected=self.table.selection();row=self.rows.get(selected[0]) if selected else None
         if row and not self.busy and action in row.get('actions',()):self.on_action(action,row)
+

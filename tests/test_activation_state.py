@@ -53,6 +53,32 @@ class RunStoreTests(unittest.TestCase):
         self.assertNotEqual(self.create()['run_id'],run['run_id'])
         self.assertEqual(len(self.store.list()),2)
 
+    def test_pending_overview_preserves_recent_limit_order_and_records(self):
+        queued=self.create()
+        recovery=self.store.enqueue(account_key='b'*64,profile='Recovery',session_id='b'*32,now=1000)
+        for old,new in [('QUEUED','CHECKING_TARGET'),('CHECKING_TARGET','ACTIVATING_TARGET'),
+                        ('ACTIVATING_TARGET','ROLLBACK_REQUIRED')]:
+            recovery=self.store.transition(recovery['run_id'],old,new,now=1001,old_session='default')
+        history=[]
+        for i in range(4):
+            run=self.store.enqueue(account_key='c'*64,profile='Recent',session_id='default',now=2000+i*2)
+            history.append(self.store.cancel(run['run_id'],now=2001+i*2))
+        newest=self.store.enqueue(account_key='d'*64,profile='Latest',session_id='default',now=3000)
+        before=self.store.list(limit=1000)
+        self.assertEqual(self.store.list(limit=2),[newest,history[-1]])
+        self.assertEqual(self.store.list(limit=2,include_pending=False),[newest,history[-1]])
+        self.assertEqual(self.store.list(limit=2,include_pending=True),[newest,history[-1],recovery,queued])
+        self.assertEqual(self.store.list(limit=1000),before)
+        self.assertEqual(self.store.pending(),[queued,recovery,newest])
+
+    def test_list_rejects_invalid_overview_options(self):
+        for limit in (0,1001,True,1.5,'2'):
+            with self.subTest(limit=limit),self.assertRaises(self.mod.RunError):
+                self.store.list(limit=limit)
+        for include_pending in (None,0,1,'true'):
+            with self.subTest(include_pending=include_pending),self.assertRaises(self.mod.RunError):
+                self.store.list(include_pending=include_pending)
+
     def test_cancel_during_cutover_requires_recovery(self):
         run=self.create()
         for a,b in [('QUEUED','CHECKING_TARGET'),('CHECKING_TARGET','ACTIVATING_TARGET')]:

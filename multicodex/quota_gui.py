@@ -49,7 +49,7 @@ class QuotaGuiController:
         model=self._get_service().work(force_key=force_key)
         engine=self._get_activation()
         model['activation_operation']=engine.tick() if execute else {'state':'IDLE'}
-        model['activation_runs']=engine.runs.list()
+        model['activation_runs']=engine.runs.list(include_pending=True)
         return model
 
     def enqueue_activation(self,key):

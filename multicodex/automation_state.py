@@ -157,11 +157,16 @@ class RunStore:
         with self._db() as db:
             return self._row(db.execute('SELECT * FROM runs WHERE run_id=?', (run_id,)).fetchone())
 
-    def list(self, limit=100):
-        if type(limit) is not int or not 1 <= limit <= 1000: raise RunError()
+    def list(self, limit=100, *, include_pending=False):
+        """Return the recent window, optionally retaining all nonterminal runs."""
+        if type(limit) is not int or not 1 <= limit <= 1000 or type(include_pending) is not bool: raise RunError()
+        query = 'SELECT * FROM runs ORDER BY created_at DESC, rowid DESC LIMIT ?'
+        if include_pending:
+            query = ("SELECT * FROM runs WHERE state NOT IN ('COMPLETED','CANCELLED','FAILED') "
+                     'OR run_id IN (SELECT run_id FROM runs ORDER BY created_at DESC, rowid DESC LIMIT ?) '
+                     'ORDER BY created_at DESC, rowid DESC')
         with self._db() as db:
-            return [self._row(row) for row in db.execute(
-                'SELECT * FROM runs ORDER BY created_at DESC, rowid DESC LIMIT ?', (limit,))]
+            return [self._row(row) for row in db.execute(query, (limit,))]
 
     def pending(self):
         with self._db() as db:

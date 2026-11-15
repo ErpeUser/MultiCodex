@@ -133,12 +133,33 @@ class GuiBridgeTests(unittest.TestCase):
         class Service:
             def work(self,**kw):return {'rows':[],'settings':dict(DEFAULTS),'profiles':[]}
         class Engine:
-            runs=SimpleNamespace(list=lambda:[])
+            runs=SimpleNamespace(list=lambda **kwargs:[])
             def tick(self):return {'state':'IDLE'}
         self.controller.service=Service();self.controller.activation=Engine()
         model=self.controller._work()
         self.assertEqual(model['activation_runs'],[])
         self.assertEqual(model['activation_operation']['state'],'IDLE')
+
+    def test_model_keeps_pending_runs_older_than_recent_history(self):
+        from multicodex.automation_state import RunStore
+        for state in ('QUEUED','ROLLBACK_REQUIRED'):
+            with self.subTest(state=state):
+                store=RunStore(Path(self.temp.name)/state)
+                target=store.enqueue(account_key='a'*64,profile='Waiting',session_id='a'*32,now=1000)
+                if state=='ROLLBACK_REQUIRED':
+                    for old,new in [('QUEUED','CHECKING_TARGET'),('CHECKING_TARGET','ACTIVATING_TARGET'),
+                                    ('ACTIVATING_TARGET','ROLLBACK_REQUIRED')]:
+                        target=store.transition(target['run_id'],old,new,now=1001,old_session='default')
+                for i in range(100):
+                    recent=store.enqueue(account_key='b'*64,profile='Recent',session_id='default',now=2000+i*2)
+                    store.cancel(recent['run_id'],now=2001+i*2)
+                self.controller.service=SimpleNamespace(work=lambda **kwargs:{'rows':[],'settings':{}})
+                self.controller.activation=SimpleNamespace(runs=store)
+                model=self.controller._work(execute=False)
+                self.assertIn(target['run_id'],[r['run_id'] for r in model['activation_runs']])
+                self.assertEqual(len(model['activation_runs']),101)
+                self.assertEqual(store.get(target['run_id']),target)
+                self.assertFalse(self.path.exists())
 
     def test_workspace_read_is_queued_and_does_not_store_secret_in_model(self):
         self.assertTrue(callable(getattr(self.controller,'read_workspace',None)))

@@ -2,6 +2,7 @@ import hashlib
 import json
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tools.release_gate import check_acceptance, ReleaseBlocked, REQUIRED_CHECKS
 
@@ -46,3 +47,13 @@ class ReleaseGateTests(unittest.TestCase):
         result=self.check()
         self.assertEqual(result['source_commit'],self.commit)
         self.assertEqual(result['setup_sha256'],self.evidence['setup_sha256'])
+
+    def test_stale_acceptance_is_rejected(self):
+        self.evidence['checked_at'] = (datetime.now(timezone.utc) - timedelta(days=15)).isoformat()
+        with self.assertRaises(ReleaseBlocked):
+            self.check()
+
+    def test_future_acceptance_is_rejected(self):
+        self.evidence['checked_at'] = (datetime.now(timezone.utc) + timedelta(minutes=6)).isoformat()
+        with self.assertRaises(ReleaseBlocked):
+            self.check()

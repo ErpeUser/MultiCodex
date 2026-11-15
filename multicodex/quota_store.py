@@ -561,14 +561,8 @@ class QuotaStore:
                     temp_path.unlink(missing_ok=True)
 
     def restore_from_backup(self, backup_path=None):
+        """Restore a verified backup while preserving the current database."""
         with self._storage_guard():
-            """Restore an explicitly verified backup while preserving the current file.
-
-            The source must be a regular file in this store's directory. It is checked
-            read-only before any destination mutation, then copied to a staged file.
-            The current database is copied to a unique preservation file before the
-            staged copy is atomically installed.
-            """
             if backup_path is None:
                 raise QuotaError()
             try:
@@ -582,8 +576,33 @@ class QuotaStore:
             if not source.is_file() or not self.path.is_file():
                 raise QuotaError('STORAGE')
 
+            staged = None
+            preservation_temp = None
             try:
-                with closing(sqlite3.connect(source.as_uri() + '?mode=ro', uri=True)) as db:
+                source_stat = source.stat()
+                staged_fd, staged_name = tempfile.mkstemp(prefix='.quota-restore-', dir=self.root)
+                os.close(staged_fd)
+                staged = Path(staged_name)
+                # Copy from one already-open source handle and detect a replacement
+                # or truncation while copying.
+                with source.open('rb') as stream:
+                    opened_stat = os.fstat(stream.fileno())
+                    if (opened_stat.st_dev, opened_stat.st_ino, opened_stat.st_size,
+                            opened_stat.st_mtime_ns) != (source_stat.st_dev, source_stat.st_ino,
+                            source_stat.st_size, source_stat.st_mtime_ns):
+                        raise QuotaError('STORAGE')
+                    with staged.open('wb') as target:
+                        shutil.copyfileobj(stream, target)
+                        target.flush()
+                        os.fsync(target.fileno())
+                    after_stat = os.fstat(stream.fileno())
+                if (after_stat.st_dev, after_stat.st_ino, after_stat.st_size,
+                        after_stat.st_mtime_ns) != (source_stat.st_dev, source_stat.st_ino,
+                        source_stat.st_size, source_stat.st_mtime_ns):
+                    raise QuotaError('STORAGE')
+
+                # Validate the staged bytes immediately before any replacement.
+                with closing(sqlite3.connect(staged.as_uri() + '?mode=ro', uri=True)) as db:
                     if db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
                         raise QuotaError('STORAGE')
                     version = db.execute('PRAGMA user_version').fetchone()[0]
@@ -594,31 +613,28 @@ class QuotaStore:
                     if not {'accounts', 'snapshots', 'events'}.issubset(tables):
                         raise QuotaError('SCHEMA')
 
-                staged_fd, staged_name = tempfile.mkstemp(prefix='.quota-restore-', dir=self.root)
-                os.close(staged_fd)
-                staged = Path(staged_name)
                 preservation_fd, preservation_name = tempfile.mkstemp(
                     prefix='.quota-damaged-', dir=self.root)
                 os.close(preservation_fd)
                 preservation_temp = Path(preservation_name)
                 preservation = self.root / ('quota.damaged-' + uuid.uuid4().hex + '.sqlite3')
-                with source.open('rb') as stream, staged.open('wb') as target:
-                    shutil.copyfileobj(stream, target)
-                    target.flush()
-                    os.fsync(target.fileno())
                 with self.path.open('rb') as stream, preservation_temp.open('wb') as target:
                     shutil.copyfileobj(stream, target)
                     target.flush()
                     os.fsync(target.fileno())
                 _safe_path(preservation)
                 os.replace(preservation_temp, preservation)
+                preservation_temp = None
                 os.replace(staged, self.path)
+                staged = None
                 return preservation
             except QuotaError:
                 raise
             except (OSError, sqlite3.Error, ValueError) as exc:
                 raise QuotaError('STORAGE') from exc
             finally:
-                for candidate in locals().get('staged', None), locals().get('preservation_temp', None):
-                    if candidate is not None:
-                        candidate.unlink(missing_ok=True)
+                if staged is not None:
+                    staged.unlink(missing_ok=True)
+                if preservation_temp is not None:
+                    preservation_temp.unlink(missing_ok=True)
+

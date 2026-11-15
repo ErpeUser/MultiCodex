@@ -84,7 +84,8 @@ class QuotaService:
                     (expected.account_id is None) != (account.get('account_id') is None) or
                     (expected.account_id is not None and expected.account_id != account.get('account_id'))):
                     raise CodexError('ACCOUNT_MISMATCH')
-                home=self.application.sessions.home(name,sid)
+                home, fingerprint = self.application.sessions.home_fingerprint(name, sid)
+                home = self.application.sessions.revalidate_home(name, sid, fingerprint)
                 return self.provider.observe(home,expected=expected,cancel=cancel,secure=True)
         except BusyError as exc:
             # The monitor allowlists this code; no filesystem/path exception is exposed.

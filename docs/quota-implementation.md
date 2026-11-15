@@ -47,8 +47,9 @@ from overwriting the new context. Older observations cannot replace newer plan
 metadata. Identity evidence from the provider is pinned without inventing a
 workspace identifier or conflating account ID with workspace ID.
 
-All stored timestamps are UTC epoch seconds; display uses the operating system's
-local timezone. At a reset boundary the UI retains the last measured consumption
+Observation and reset timestamps use UTC epoch seconds; display uses the operating
+system's local timezone. The internal `captured_at` ordering field uses epoch
+nanoseconds. At a reset boundary the UI retains the last measured consumption
 and reports that new capacity is unconfirmed. It never adds five hours/seven days
 to removal time or repeatedly rolls a deadline forward without new evidence.
 

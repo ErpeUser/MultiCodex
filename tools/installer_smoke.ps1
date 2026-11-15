@@ -3,7 +3,12 @@ param(
     [Parameter(Mandatory=$true)][string]$ReportDirectory
 )
 $ErrorActionPreference = 'Stop'
-$Installer = (Resolve-Path $Installer).Path
+Set-StrictMode -Version Latest
+if ([string]::IsNullOrWhiteSpace($env:TEMP) -or [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    throw 'TEMP and LOCALAPPDATA must be set for installer verification'
+}
+if (!(Test-Path -LiteralPath $Installer -PathType Leaf)) { throw 'Installer path must reference a file' }
+$Installer = (Resolve-Path -LiteralPath $Installer).Path
 New-Item -ItemType Directory -Force $ReportDirectory | Out-Null
 $ReportDirectory = (Resolve-Path $ReportDirectory).Path
 # A probe must never replace the registration of a real user installation.
@@ -13,7 +18,7 @@ $probeId = [guid]::NewGuid().ToString('N')
 $destination = Join-Path $env:TEMP "MultiCodex Install Probe $probeId"
 $stateRoot = Join-Path $env:LOCALAPPDATA 'MultiCodex'
 $sentinel = Join-Path $stateRoot "installer-preserve-$probeId.txt"
-if (Test-Path $destination) { throw 'Refusing to reuse a test installation directory' }
+if (Test-Path -LiteralPath $destination) { throw 'Refusing to reuse a test installation directory' }
 New-Item -ItemType Directory -Force $stateRoot | Out-Null
 'Synthetic preservation probe; no credentials' | Set-Content -LiteralPath $sentinel
 $originalHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash

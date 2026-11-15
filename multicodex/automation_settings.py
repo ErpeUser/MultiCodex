@@ -16,6 +16,7 @@ class SettingsError(ValueError):
         super().__init__(self.code)
 
 
+MAX_SETTINGS_BYTES = 65536
 DEFAULTS = {'schema_version': 1, 'enabled': False, 'poll_interval_seconds': 60,
     'warning_threshold_percent': 90, 'allowed_profiles': [], 'maximum_retries': 3,
     'cooldown_seconds': 300, 'max_age_seconds': 120, 'idle_instance_policy': 'keep_open',
@@ -61,7 +62,7 @@ class AutomationSettings:
             _safe_path(self.path)
             if not self.path.exists():
                 return validate_settings({})
-            if self.path.stat().st_size > 65536:
+            if self.path.stat().st_size > MAX_SETTINGS_BYTES:
                 raise SettingsError('CORRUPT_SETTINGS')
             return validate_settings(json.loads(self.path.read_text(encoding='utf-8')))
         except (OSError,ValueError) as exc:
@@ -76,9 +77,12 @@ class AutomationSettings:
             self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
             with FileLock(self.root / '.locks' / 'quota-settings.lock'):
                 data = validate_settings({**self.load(), **changes})
+                payload = json.dumps(data,ensure_ascii=True,indent=2,allow_nan=False).encode('utf-8')
+                if len(payload) > MAX_SETTINGS_BYTES:
+                    raise SettingsError()
                 fd, temp = tempfile.mkstemp(prefix='.quota-settings-',dir=self.root)
-                with os.fdopen(fd,'w',encoding='utf-8') as stream:
-                    json.dump(data,stream,ensure_ascii=True,indent=2,allow_nan=False)
+                with os.fdopen(fd,'wb') as stream:
+                    stream.write(payload)
                     stream.flush();os.fsync(stream.fileno())
                 _safe_path(self.path)
                 os.replace(temp,self.path)

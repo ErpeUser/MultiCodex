@@ -28,6 +28,53 @@ class SettingsTests(unittest.TestCase):
         self.settings.save({'enabled':True})
         self.assertEqual(self.settings.load()['maximum_retries'],4)
 
+    def test_oversized_settings_preserve_readable_previous_file(self):
+        cases = [
+            ('ascii', [f'P{i:04}' + 'x'*55 for i in range(1000)]),
+            ('unicode', [f'P{i:04}' + '界'*55 for i in range(200)]),
+            ('one_byte_over', [f'P{i:04}' + 'x'*55 for i in range(958)] + ['Q' + 'x'*48]),
+        ]
+        for label, profiles in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(dir=self.root) as tmp:
+                settings = self.mod.AutomationSettings(Path(tmp))
+                settings.save({'allowed_profiles':['Work'],'maximum_retries':4})
+                previous = settings.path.read_bytes()
+                with self.assertRaises(self.mod.SettingsError) as caught:
+                    settings.save({'allowed_profiles':profiles})
+                self.assertEqual(caught.exception.code, 'INVALID_SETTINGS')
+                self.assertEqual(settings.path.read_bytes(), previous)
+                self.assertEqual(settings.load()['allowed_profiles'], ['Work'])
+                settings.save({'enabled':True})
+                self.assertTrue(settings.load()['enabled'])
+                self.assertEqual(settings.load()['maximum_retries'], 4)
+                self.assertEqual(list(Path(tmp).glob('.quota-settings-*')), [])
+
+    def test_oversized_first_save_does_not_create_settings_file(self):
+        profiles = [f'P{i:04}' + '界'*55 for i in range(200)]
+        with self.assertRaises(self.mod.SettingsError):
+            self.settings.save({'allowed_profiles':profiles})
+        self.assertFalse(self.settings.path.exists())
+        self.assertFalse(self.settings.load()['enabled'])
+        self.assertEqual(list(self.root.glob('.quota-settings-*')), [])
+
+    def test_valid_unicode_and_maximum_count_roundtrip(self):
+        for profiles in ([f'P{i:04}' for i in range(1000)], [f'界{i:04}' for i in range(200)]):
+            with self.subTest(profile_count=len(profiles)):
+                saved = self.settings.save({'allowed_profiles':profiles})
+                self.assertLessEqual(self.settings.path.stat().st_size, 65536)
+                self.assertEqual(self.mod.AutomationSettings(self.root).load(), saved)
+
+    def test_exact_byte_limit_roundtrip(self):
+        # These 959 names fill the existing JSON representation to the reader boundary.
+        profiles = [f'P{i:04}' + 'x'*55 for i in range(958)] + ['Q' + 'x'*47]
+        saved = self.settings.save({'allowed_profiles':profiles})
+        self.assertEqual(self.settings.path.stat().st_size, 65536)
+        self.assertEqual(self.mod.AutomationSettings(self.root).load(), saved)
+        self.settings.save({'enabled':True})
+        self.settings.save({'enabled':False})
+        self.assertFalse(self.settings.load()['enabled'])
+        self.assertEqual(self.settings.path.stat().st_size, 65536)
+
     def test_corrupt_settings_are_not_overwritten(self):
         self.settings.path.write_text('broken')
         with self.assertRaises(self.mod.SettingsError):self.settings.load()

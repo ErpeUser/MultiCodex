@@ -124,7 +124,8 @@ class ProfileActivation:
             if (identity.email.casefold() != account['email'].casefold() or
                 identity.account_id != account['account_id']):
                 raise ActivationError('ACCOUNT_MISMATCH')
-            home = app.sessions.home(name, sid)
+            home, fingerprint = app.sessions.home_fingerprint(name, sid)
+            home = app.sessions.revalidate_home(name, sid, fingerprint)
             observed = app.auth.describe(home, refresh=True, cancel=self.cancel)
             if not identity.same_account(observed): raise ActivationError('ACCOUNT_MISMATCH')
             if self.cancel.is_set(): raise ActivationError('CANCELLED')
@@ -154,6 +155,7 @@ class ProfileActivation:
             # Our own cutover journal blocks the regular monitor by design. Read
             # the exact auth home directly and persist the same sanitized contract.
             expected_revision = self.quota.store.account(run['account_key'])['context_revision']
+            home = app.sessions.revalidate_home(name, sid, fingerprint)
             observation = self.quota.provider.observe(home, expected=identity, cancel=self.cancel, secure=True)
             self.quota.store.capture(run['account_key'], observation['usage'],
                 observed_at=observation['observed_at'], expected_revision=expected_revision,

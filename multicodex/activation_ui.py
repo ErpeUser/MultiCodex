@@ -3,7 +3,7 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 from .quota_ui import _label, _button, _table_style
-from .ui_tokens import THEMES
+from .ui_tokens import THEMES, BREAKPOINTS
 
 STATE_TEXT = {
     'QUEUED': 'Start vorgemerkt', 'CHECKING_TARGET': 'Anmeldung wird gepr\u00fcft',
@@ -37,6 +37,7 @@ class ActivationPanel(tk.Frame):
         controls = tk.Frame(self, bg=p['panel'])
         controls.grid(row=3, column=0, sticky='ew', padx=16, pady=(0, 12))
         controls.grid_columnconfigure(0, weight=1)
+        self.controls = controls
         prefix = _table_style(self, theme)
         self.target = ttk.Combobox(controls, state='readonly', style=prefix+'.TCombobox')
         self.target.grid(row=0, column=0, sticky='ew', padx=(0, 8), ipady=5)
@@ -58,13 +59,38 @@ class ActivationPanel(tk.Frame):
         self.detail.bind('<Configure>', lambda e: self.detail.configure(wraplength=max(200,e.width)))
         actions = tk.Frame(self, bg=p['panel'])
         actions.grid(row=6, column=0, sticky='ew', padx=16, pady=12)
+        self.actions = actions
         self.cancel_button = _button(actions, 'Auftrag abbrechen', lambda: self.action('cancel'), p)
         self.resume_button = _button(actions, 'Erneut pr\u00fcfen', lambda: self.action('resume'), p)
         self.recover_button = _button(actions, 'Zuordnung wiederherstellen', lambda: self.action('recover'), p)
         for i, button in enumerate((self.cancel_button, self.resume_button, self.recover_button)):
             button.grid(row=i//2, column=i%2, sticky='ew', padx=(0, 8), pady=3)
         actions.grid_columnconfigure((0, 1), weight=1)
+        self._compact = None
+        self._action_columns = 2
+        self.bind('<Configure>', self._resize)
         self.selected()
+
+    def _resize(self, event):
+        if event.widget is not self:
+            return
+        width=max(240,event.width-32)
+        compact=width < BREAKPOINTS['compact']
+        if compact != self._compact:
+            self._compact=compact
+            self.target.grid_forget();self.enqueue_button.grid_forget()
+            if compact:
+                self.target.grid(row=0,column=0,columnspan=2,sticky='ew',padx=0,pady=(0,5),ipady=5)
+                self.enqueue_button.grid(row=1,column=0,columnspan=2,sticky='ew')
+            else:
+                self.target.grid(row=0,column=0,sticky='ew',padx=(0,8),ipady=5)
+                self.enqueue_button.grid(row=0,column=1)
+        columns=1 if compact else 2
+        if columns != self._action_columns:
+            self._action_columns=columns
+            for col in range(2):self.actions.grid_columnconfigure(col,weight=1 if col<columns else 0,uniform='actions')
+            for index,button in enumerate((self.cancel_button,self.resume_button,self.recover_button)):
+                button.grid_forget();button.grid(row=index//columns,column=index%columns,sticky='ew',padx=(0,8) if index%columns==0 else 0,pady=3)
 
     def enqueue(self):
         index = self.target.current()
@@ -121,3 +147,4 @@ class ActivationPanel(tk.Frame):
                 STATE_TEXT.get(row['state'], 'Unbekannt')))
         if selection and selection[0] in self.runs: self.tree.selection_set(selection[0])
         self.selected()
+

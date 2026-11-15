@@ -57,7 +57,8 @@ class QuotaGuiController:
         def work():
             self._get_activation().request(key)
             return self._work()
-        self._queue(work,self._loaded,foreground=True)
+        if not self._queue(work,self._loaded,foreground=True):
+            self.host._set_status('Profilstart nicht vorgemerkt: Eine Quota-Aktion l\u00e4uft bereits. Bitte danach erneut versuchen.')
 
     def activation_action(self,key,action):
         if action not in {'cancel','recover','resume'} or self.host.closing or self.host.mutating or self.cancel.is_set():return
@@ -67,7 +68,8 @@ class QuotaGuiController:
             elif action=='recover':engine.recover(key)
             else:engine.resume(key)
             return self._work(execute=False)
-        self._queue(work,self._loaded,foreground=True)
+        if not self._queue(work,self._loaded,foreground=True):
+            self.host._set_status('Auftragsaktion nicht angenommen: Eine Quota-Aktion l\u00e4uft bereits. Bitte danach erneut versuchen.')
 
     @staticmethod
     def _alive(widget):
@@ -201,8 +203,9 @@ class QuotaGuiController:
 
     def backup(self):
         if self.host.closing:return
-        self._queue(lambda:self._get_service().backup(),
-            lambda path:self.host._set_status('Quota-Sicherung erstellt: quota.previous.sqlite3'),foreground=True)
+        if not self._queue(lambda:self._get_service().backup(),
+            lambda path:self.host._set_status('Quota-Sicherung erstellt: quota.previous.sqlite3'),foreground=True):
+            self.host._set_status('Sicherung nicht gestartet: Eine Quota-Aktion l\u00e4uft bereits. Bitte danach erneut versuchen.')
 
     def close(self):
         self.cancel.set()

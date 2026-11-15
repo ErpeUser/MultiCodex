@@ -91,6 +91,43 @@ class GuiBridgeTests(unittest.TestCase):
         self.controller.activation_action('a'*32,'delete')
         self.assertEqual(self.host.jobs,[])
 
+    def test_busy_quota_work_reports_rejected_activation_commands(self):
+        self.controller.refresh();pending=self.host.jobs[0]
+        for action in ('enqueue','cancel','resume','recover'):
+            with self.subTest(action=action):
+                self.host.status=''
+                if action=='enqueue':self.controller.enqueue_activation('a'*64)
+                else:self.controller.activation_action('b'*32,action)
+                self.assertEqual(len(self.host.jobs),1)
+                self.assertIs(self.host.jobs[0],pending)
+                self.assertFalse(self.controller.foreground)
+                self.assertFalse(self.path.exists())
+                self.assertIn('l\u00e4uft',self.host.status)
+                self.assertIn('erneut',self.host.status)
+
+    def test_busy_quota_work_reports_rejected_backup(self):
+        self.controller.refresh();pending=self.host.jobs[0]
+        self.controller.backup()
+        self.assertEqual(len(self.host.jobs),1)
+        self.assertIs(self.host.jobs[0],pending)
+        self.assertFalse(self.controller.foreground)
+        self.assertFalse(self.path.exists())
+        self.assertIn('l\u00e4uft',self.host.status)
+        self.assertIn('erneut',self.host.status)
+        self.assertNotIn('Sicherung erstellt',self.host.status)
+
+    def test_accepted_manual_commands_have_no_busy_warning(self):
+        for action in ('enqueue','cancel','resume','recover','backup'):
+            with self.subTest(action=action):
+                host=Host();controller=self.mod.QuotaGuiController(host,self.path)
+                if action=='enqueue':controller.enqueue_activation('a'*64)
+                elif action=='backup':controller.backup()
+                else:controller.activation_action('b'*32,action)
+                self.assertEqual(len(host.jobs),1)
+                self.assertEqual(host.status,'')
+                self.assertTrue(controller.foreground)
+                self.assertFalse(self.path.exists())
+
     def test_refresh_keeps_workspace_reads_explicit(self):
         self.assertTrue(callable(getattr(self.controller,'_work',None)))
         class Service:

@@ -30,8 +30,13 @@ class QuotaService:
         self._gate = threading.RLock()
 
     def _sync(self):
-        known={(r['profile_id'],r['session_id'],r['email'].casefold(),r['account_id']):r['account_key']
-               for r in self.store.accounts()}
+        # A profile/session/email tuple is not sufficient when the same login is
+        # visible in more than one workspace. Keep candidates and bind only when
+        # the workspace context is unambiguous.
+        known={}
+        for row in self.store.accounts():
+            base=(row['profile_id'],row['session_id'],row['email'].casefold(),row.get('account_id'))
+            known.setdefault(base, []).append(row)
         bindings={};issues=[];profiles=[]
         for profile in self.application.store.list():
             if profile.linked:continue
@@ -39,12 +44,20 @@ class QuotaService:
             try:
                 with self.application.sessions.lock(profile.name):
                     for session in self.application.sessions.list(profile.name):
-                        identity=(profile.name,session['id'],session['email'].casefold(),session.get('account_id'))
-                        key=known.get(identity)
-                        if key is None:
-                            key=self.store.register(profile_id=profile.name,session_id=session['id'],
+                        workspace=session.get('workspace_id')
+                        base=(profile.name,session['id'],session['email'].casefold(),session.get('account_id'))
+                        candidates=known.get(base, [])
+                        if workspace is not None:
+                            candidates=[row for row in candidates if row.get('workspace_id') == workspace]
+                        if len(candidates) > 1:
+                            issues.append({'profile':profile.name,'code':'WORKSPACE_CONTEXT_REQUIRED'})
+                            continue
+                        row=candidates[0] if candidates else None
+                        key=(row['account_key'] if row else
+                             self.store.register(profile_id=profile.name,session_id=session['id'],
                                 email=session['email'],account_id=session.get('account_id'),
-                                plan_type=session.get('plan'),now=int(self.clock()))
+                                workspace_id=workspace,plan_type=session.get('plan'),
+                                now=int(self.clock())))
                         bindings[key]=(profile.name,session['id'])
             except Exception:
                 # Corrupt metadata or an active login is not an empty healthy account list.
@@ -68,7 +81,8 @@ class QuotaService:
                     raise BusyError('Pending session transaction')
                 expected=self.application.sessions.identity(name,sid)
                 if (expected.email.casefold()!=account['email'].casefold() or
-                    account['account_id'] is not None and expected.account_id!=account['account_id']):
+                    (expected.account_id is None) != (account.get('account_id') is None) or
+                    (expected.account_id is not None and expected.account_id != account.get('account_id'))):
                     raise CodexError('ACCOUNT_MISMATCH')
                 home=self.application.sessions.home(name,sid)
                 return self.provider.observe(home,expected=expected,cancel=cancel,secure=True)

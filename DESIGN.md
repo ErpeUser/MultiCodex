@@ -70,3 +70,10 @@ Reuse current typography, sea-glass accent and dark/light surfaces. Reuse
 QuotaSettingsPanel and update its capability note at the integration boundary.
 Real Linux Tk component captures cover both themes and a narrow queue layout.
 They do not certify the complete shell, Windows DPI, native focus or accessibility.
+
+
+## Responsive implementation contract (15 November 2026)
+
+The runtime token module now owns semantic spacing, control heights, typography roles, focus and state colors. The 4px rhythm is 4/8/12/16/24/32; panels use 12px radius and controls use 8px radius. The shell reflows its content inset below 1000px, action groups to one column below 620px, quota metrics from three to two to one columns at 900px/620px, and quota detail actions to a vertical stack below 700px. Long German labels wrap inside their measured widget instead of using a startup width estimate.
+
+Every actionable control has a visible keyboard focus treatment and Return/Space activation where the native toolkit supports it. Statuses retain text such as Unbekannt, Nicht verifiziert, Deaktiviert or LIVE verifiziert; color alone never carries state. These rules are implemented in the native Tk/CustomTkinter views. They still require native Windows visual QA at 900x640 and 1180x760, dark and light themes, 100/125/150/200% DPI and keyboard-only navigation before release.

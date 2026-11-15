@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -23,6 +24,25 @@ class DistributionTests(unittest.TestCase):
         from json import loads
         package = loads((ROOT/'bridge'/'package.json').read_text())
         self.assertEqual(package['dependencies']['codex-multi-auth'], '2.26.0')
+
+    def test_workflows_pin_actions_and_cover_pull_requests(self):
+        for name in ('windows.yml', 'feature-checks.yml'):
+            workflow = (ROOT/'.github'/'workflows'/name).read_text(encoding='utf8')
+            refs = re.findall(r'uses:\s*([^\\s]+)@([0-9a-f]{40})', workflow)
+            self.assertTrue(refs, name)
+            self.assertNotRegex(workflow, r'uses:\s*[^\\s]+@v[0-9]')
+            self.assertIn('persist-credentials: false', workflow)
+        feature = (ROOT/'.github'/'workflows'/'feature-checks.yml').read_text(encoding='utf8')
+        self.assertIn('pull_request:', feature)
+        self.assertIn('branches: [main, \'feature/**\']', feature)
+        self.assertIn('--require-hashes', feature)
+
+    def test_windows_build_is_clean_and_toolchain_bound(self):
+        script = (ROOT/'tools'/'build_windows.ps1').read_text(encoding='utf8')
+        self.assertIn('-TimeoutSec 120', script)
+        self.assertIn('Remove-Item -LiteralPath $nodeRoot', script)
+        self.assertIn('inno_version', script)
+        self.assertIn('Build requires a clean source tree', script)
 
 
 if __name__=='__main__': unittest.main()

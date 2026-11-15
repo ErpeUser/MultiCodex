@@ -209,19 +209,23 @@ class QuotaStore:
 
     @contextmanager
     def _storage_guard(self):
-        """Serialize SQLite replacement and backup operations across processes."""
+        """Serialize SQLite replacement and backups across processes."""
+        lock = FileLock(self.lock_path)
         deadline = time.monotonic() + 5.0
         delay = 0.01
         while True:
             try:
-                with FileLock(self.lock_path):
-                    yield
-                    return
+                lock.__enter__()
+                break
             except BusyError as exc:
                 if time.monotonic() >= deadline:
                     raise QuotaError('STORAGE') from exc
                 time.sleep(delay)
                 delay = min(delay * 2, 0.1)
+        try:
+            yield
+        finally:
+            lock.__exit__(None, None, None)
 
     @contextmanager
     def _db(self, *, write=False):

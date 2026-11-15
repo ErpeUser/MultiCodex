@@ -20,7 +20,8 @@ from .jobs import JobRunner, JobBusy
 from .profiles import ProfileStore
 from .runtime import LocalInstances
 from .settings import SettingsStore
-from .ui_tokens import THEMES, PADDING, NAV_WIDTH
+from .ui_tokens import (THEMES, PADDING, RADIUS, NAV_WIDTH, BREAKPOINTS, CONTROL_HEIGHT,
+                         SPACING, TEXT_SIZE)
 from . import __version__
 from .quota_gui import QuotaGuiController
 from .workspace_admin_gui import WorkspaceAdminGuiController
@@ -78,6 +79,7 @@ class MultiCodexApp(ctk.CTk):
         self.data_tables = {}
         self.metrics = None
         self._build_shell()
+        self.bind('<Configure>', self._resize_shell)
         self._render()
         self.protocol('WM_DELETE_WINDOW', self._close)
         self.bind('<Control-r>', lambda event: self._refresh(include_pool=True))
@@ -130,31 +132,31 @@ class MultiCodexApp(ctk.CTk):
         self.rail.grid(row=0, column=0, sticky='nsew')
         self.rail.grid_propagate(False)
         ctk.CTkLabel(self.rail, text='MultiCodex', text_color=p['text'],
-                     font=ctk.CTkFont(family='Segoe UI', size=21, weight='bold')).pack(anchor='w', padx=24, pady=(28, 5))
-        ctk.CTkLabel(self.rail, text='Lokale Kontoverwaltung', text_color=p['muted']).pack(anchor='w', padx=24, pady=(0, 30))
+                     font=ctk.CTkFont(family='Segoe UI', size=21, weight='bold')).pack(anchor='w', padx=SPACING['xl'], pady=(28, 5))
+        ctk.CTkLabel(self.rail, text='Lokale Kontoverwaltung', text_color=p['muted']).pack(anchor='w', padx=SPACING['xl'], pady=(0, 30))
         for key in PAGES:
-            button = ctk.CTkButton(self.rail, text=LABELS[key], anchor='w', height=38,
+            button = ctk.CTkButton(self.rail, text=LABELS[key], anchor='w', height=CONTROL_HEIGHT['default'],
                 fg_color='transparent', hover_color=p['selected'], text_color=p['text'],
                 command=lambda key=key: self._set_page(key))
             button.pack(fill='x', padx=14, pady=4)
             self._keyboard_button(button)
             self.nav_buttons[key] = button
         ctk.CTkLabel(self.rail, text='Entwicklungsstand\nKeine Cloud-Synchronisierung', text_color=p['muted'],
-                     justify='left', font=ctk.CTkFont(size=11)).pack(side='bottom', padx=24, pady=24)
+                     justify='left', font=ctk.CTkFont(size=TEXT_SIZE['label'])).pack(side='bottom', padx=SPACING['xl'], pady=SPACING['xl'])
         self.right = ctk.CTkFrame(self, fg_color=p['canvas'], corner_radius=0)
         self.right.grid(row=0, column=1, sticky='nsew')
         self.right.grid_columnconfigure(0, weight=1)
         self.right.grid_rowconfigure(1, weight=1)
         header = ctk.CTkFrame(self.right, fg_color='transparent')
-        header.grid(row=0, column=0, sticky='ew', padx=30, pady=(25, 12))
+        header.grid(row=0, column=0, sticky='ew', padx=SPACING['xxl'], pady=(25, 12))
         header.grid_columnconfigure(0, weight=1)
         self.header_title = ctk.CTkLabel(header, text='', text_color=p['text'],
-            font=ctk.CTkFont(family='Segoe UI', size=26, weight='bold'), anchor='w')
+            font=ctk.CTkFont(family='Segoe UI', size=TEXT_SIZE['title'], weight='bold'), anchor='w')
         self.header_title.grid(row=0, column=0, sticky='w')
         self.header_subtitle = ctk.CTkLabel(header, text='', text_color=p['muted'],
             justify='left', wraplength=420, anchor='w')
         self.header_subtitle.grid(row=1, column=0, sticky='w', pady=(5, 0))
-        self.primary = ctk.CTkButton(header, text='Neue Instanz', width=140, height=40,
+        self.primary = ctk.CTkButton(header, text='Neue Instanz', width=140, height=CONTROL_HEIGHT['primary'],
             fg_color=p['accent'], hover_color=p['selected'], text_color=p['accent_text'], command=self._new_profile)
         self.primary.grid(row=0, column=1, rowspan=2, padx=(12, 0))
         self._keyboard_button(self.primary)
@@ -164,9 +166,9 @@ class MultiCodexApp(ctk.CTk):
         self.sign_in_button.grid(row=2, column=1, sticky='e', pady=(8, 0))
         self._keyboard_button(self.sign_in_button)
         self.page_frame = ctk.CTkScrollableFrame(self.right, fg_color='transparent')
-        self.page_frame.grid(row=1, column=0, sticky='nsew', padx=24, pady=4)
+        self.page_frame.grid(row=1, column=0, sticky='nsew', padx=SPACING['xl'], pady=4)
         footer = ctk.CTkFrame(self.right, fg_color='transparent')
-        footer.grid(row=2, column=0, sticky='ew', padx=32, pady=(5, 14))
+        footer.grid(row=2, column=0, sticky='ew', padx=SPACING['xxl'], pady=(5, 14))
         footer.grid_columnconfigure(0, weight=1)
         self.progress = ctk.CTkProgressBar(footer, height=3, mode='indeterminate', progress_color=p['accent'])
         self.progress.grid(row=0, column=0, columnspan=2, sticky='ew', pady=(0, 9))
@@ -180,6 +182,16 @@ class MultiCodexApp(ctk.CTk):
         self.cancel_button.grid(row=1, column=1, padx=(10, 0))
         self.cancel_button.grid_remove()
         self._keyboard_button(self.cancel_button)
+
+    def _resize_shell(self, event):
+        """Keep German copy and the primary action legible at compact widths."""
+        if event.widget is not self or not hasattr(self, 'header_subtitle'):
+            return
+        available=max(260,event.width-NAV_WIDTH-SPACING['xxl']*2)
+        self.header_subtitle.configure(wraplength=max(260,min(520,available-170)))
+        self.status_bar.configure(wraplength=max(220,min(560,available-170)))
+        inset=SPACING['lg'] if event.width < 1000 else SPACING['xl']
+        self.page_frame.grid_configure(padx=inset)
 
     @staticmethod
     def _keyboard_button(button):
@@ -218,7 +230,7 @@ class MultiCodexApp(ctk.CTk):
         self._busy_state()
 
     def _panel(self, title, subtitle=None):
-        card = ctk.CTkFrame(self.page_frame, fg_color=self.palette['panel'], corner_radius=12)
+        card = ctk.CTkFrame(self.page_frame, fg_color=self.palette['panel'], corner_radius=RADIUS)
         card.pack(fill='x', padx=7, pady=(6, 14))
         ctk.CTkLabel(card, text=title, text_color=self.palette['text'],
             font=ctk.CTkFont(size=17, weight='bold')).pack(anchor='w', padx=PADDING, pady=(16, 7))
@@ -228,15 +240,17 @@ class MultiCodexApp(ctk.CTk):
 
     def _line(self, parent, text, *, muted=False):
         label = ctk.CTkLabel(parent, text=text, text_color=self.palette['muted' if muted else 'text'],
-            wraplength=max(340, self.winfo_width()-NAV_WIDTH-140), justify='left', anchor='w')
-        label.pack(fill='x', padx=20, pady=(2, 10))
+            wraplength=max(260, self.winfo_width()-NAV_WIDTH-140), justify='left', anchor='w')
+        label.pack(fill='x', padx=PADDING, pady=(2, 10))
+        label.bind('<Configure>', lambda event: label.configure(wraplength=max(240,event.width-4)))
         return label
 
     def _actions(self, parent, items):
         """Wrap controls naturally at two columns instead of squeezing long labels."""
         row = ctk.CTkFrame(parent, fg_color='transparent')
-        row.pack(fill='x', padx=20, pady=(5, 14))
+        row.pack(fill='x', padx=PADDING, pady=(5, 14))
         row.grid_columnconfigure((0, 1), weight=1)
+        buttons=[]
         for index, (text, command) in enumerate(items):
             button = ctk.CTkButton(row, text=text, height=34,
                 fg_color=self.palette['selected'], text_color=self.palette['text'],
@@ -244,6 +258,18 @@ class MultiCodexApp(ctk.CTk):
             button.grid(row=index//2, column=index%2, sticky='ew', padx=(0, 8), pady=4)
             self._keyboard_button(button)
             self.action_buttons.append(button)
+            buttons.append(button)
+        row._multicodex_action_columns=2
+        def reflow(event):
+            columns=1 if event.width < BREAKPOINTS['compact'] else 2
+            if columns == row._multicodex_action_columns:
+                return
+            row._multicodex_action_columns=columns
+            for column in range(2):row.grid_columnconfigure(column,weight=1 if column<columns else 0)
+            for index,button in enumerate(buttons):
+                button.grid_forget()
+                button.grid(row=index//columns,column=index%columns,sticky='ew',padx=(0,8) if index%columns==0 else 0,pady=4)
+        row.bind('<Configure>', reflow)
 
     def _page_overview(self):
         self.metrics = MetricStrip(self.page_frame,
@@ -765,3 +791,4 @@ class MultiCodexApp(ctk.CTk):
 
 def main():
     MultiCodexApp().mainloop()
+

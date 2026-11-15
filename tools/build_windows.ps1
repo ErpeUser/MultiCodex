@@ -6,8 +6,16 @@ Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot -Parent
 Push-Location $root
 try {
+    $initialCommit = (& git rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot identify source commit before build' }
+    $initialStatus = @(& git status --porcelain --untracked-files=all)
+    if ($initialStatus.Count -gt 0) { throw 'Build requires a clean source tree' }
     if (![Environment]::Is64BitOperatingSystem -or $env:OS -ne 'Windows_NT') { throw 'Windows x64 is required' }
     New-Item -ItemType Directory -Force evidence,output,build/downloads | Out-Null
+    if ((Get-ChildItem evidence -Force -ErrorAction SilentlyContinue).Count -gt 0 -or
+        (Get-ChildItem output -Force -ErrorAction SilentlyContinue).Count -gt 0) {
+        throw 'Evidence and output directories must be empty before a reproducible build'
+    }
     if (!$InnoCompiler) {
         $candidates = @(
             "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
@@ -17,8 +25,11 @@ try {
         $InnoCompiler = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
     }
     if (!$InnoCompiler -or !(Test-Path -LiteralPath $InnoCompiler)) {
-        throw 'Install Inno Setup 6 first: winget install --id JRSoftware.InnoSetup --exact --version 6.7.3'
+        throw 'Install a verified Inno Setup 6.7.1 or 6.7.3 compiler before building'
     }
+    $innoVersion = (Get-Item -LiteralPath $InnoCompiler).VersionInfo.FileVersion
+    if ($innoVersion -match '^([0-9]+\.[0-9]+\.[0-9]+)') { $innoVersion = $Matches[1] }
+    if ($innoVersion -notin @('6.7.1','6.7.3')) { throw "Unsupported Inno Setup version: $innoVersion" }
 
     if (!(Test-Path .venv/Scripts/python.exe)) {
         & python -c 'import sys; assert sys.version_info[:3] == (3, 12, 10) and sys.maxsize > 2**32'
@@ -39,13 +50,14 @@ try {
 
     # This official archive supplies both the runtime and its full license.
     $archive = Join-Path $root 'build/downloads/node-v22.23.5-win-x64.zip'
+    $nodeRoot = Join-Path $root 'build/downloads/node-v22.23.5-win-x64'
     $nodeHash = '4a191082e9706866830379d577d2cc8a50c776fcd9436a8d061b063ed0d9a0e3'
     if (!(Test-Path -LiteralPath $archive)) {
-        Invoke-WebRequest 'https://nodejs.org/dist/v22.23.5/node-v22.23.5-win-x64.zip' -OutFile $archive
+        Invoke-WebRequest 'https://nodejs.org/dist/v22.23.5/node-v22.23.5-win-x64.zip' -OutFile $archive -TimeoutSec 120
     }
     if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLower() -ne $nodeHash) { throw 'Node archive checksum mismatch' }
+    if (Test-Path -LiteralPath $nodeRoot) { Remove-Item -LiteralPath $nodeRoot -Recurse -Force }
     Expand-Archive -LiteralPath $archive -DestinationPath build/downloads -Force
-    $nodeRoot = Join-Path $root 'build/downloads/node-v22.23.5-win-x64'
     $node = Join-Path $nodeRoot 'node.exe'
     $oldPath = $env:PATH
     $env:PATH = "$nodeRoot;$oldPath"
@@ -64,6 +76,10 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Source runtime check failed' }
         & $python run.py --gui-smoke --report evidence/source-gui.json
         if ($LASTEXITCODE -ne 0) { throw 'Source GUI check failed' }
+        foreach ($dir in @('dist/MultiCodex','build/MultiCodex')) {
+            $stale = Join-Path $root $dir
+            if (Test-Path -LiteralPath $stale) { Remove-Item -LiteralPath $stale -Recurse -Force }
+        }
         & $python -m PyInstaller packaging/MultiCodex.spec --noconfirm --clean *> evidence/pyinstaller.txt
         if ($LASTEXITCODE -ne 0) { Get-Content evidence/pyinstaller.txt; throw 'PyInstaller failed' }
     } finally {
@@ -106,7 +122,10 @@ try {
 
     $commit = (& git rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'Cannot identify source commit' }
+    $finalCommit = (& git rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or $finalCommit -ne $initialCommit) { throw 'Source commit changed during build' }
     $status = @(& git status --porcelain --untracked-files=all)
+    if ($status | Where-Object { $_ -notmatch '^(\?\?|!!)' }) { throw 'Tracked source changed during build' }
     $commit | Set-Content evidence/source-commit.txt
     & git diff --binary HEAD | Set-Content -Encoding utf8 evidence/source-changes.patch
     & git ls-files --others --exclude-standard | Set-Content evidence/untracked-source-files.txt
@@ -119,12 +138,18 @@ try {
     @{
         built_at = [DateTimeOffset]::Now.ToString('o')
         source_commit = $commit
+        initial_commit = $initialCommit
+        final_commit = $finalCommit
         source_dirty = ($status.Count -gt 0)
         windows = [Environment]::OSVersion.VersionString
         python = (& $python --version | Out-String).Trim()
+        pip = (& $python -m pip --version | Out-String).Trim()
         node = (& $node --version | Out-String).Trim()
+        npm = (& (Join-Path $nodeRoot 'npm.cmd') --version | Out-String).Trim()
+        git = (& git --version | Out-String).Trim()
         node_archive_sha256 = $nodeHash
         compiler = (Resolve-Path $InnoCompiler).Path
+        inno_version = $innoVersion
         compiler_sha256 = (Get-FileHash -LiteralPath $InnoCompiler -Algorithm SHA256).Hash.ToLower()
         setup_sha256 = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLower()
         scope = 'local development build; native OAuth/multi-instance acceptance is still required for release'

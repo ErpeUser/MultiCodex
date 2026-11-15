@@ -32,6 +32,8 @@ def _button(master, text, command, palette, *, primary=False):
         height=1)
     button.bind('<Return>',lambda event:button.invoke())
     button.bind('<space>',lambda event:button.invoke())
+    button.bind('<FocusIn>',lambda event:button.configure(highlightthickness=2))
+    button.bind('<FocusOut>',lambda event:button.configure(highlightthickness=1))
     return button
 
 

@@ -471,6 +471,27 @@ class QuotaStore:
                              (self._key(key),)).fetchone()
             return self._snapshot(row[0], key) if row else None
 
+    def observation_view(self, keys):
+        """Read latest snapshots and polling metadata through one SQLite connection."""
+        if not isinstance(keys, (list, tuple, set)):
+            raise QuotaError()
+        with self._db() as db:
+            result = {}
+            for raw_key in keys:
+                key = self._key(raw_key)
+                account = self._account(db, key)
+                row = db.execute(
+                    'SELECT payload FROM snapshots WHERE account_key=? '
+                    'ORDER BY observed_at DESC, captured_at DESC LIMIT 1', (key,)).fetchone()
+                result[key] = {
+                    'snapshot': self._snapshot(row[0], key) if row else None,
+                    'polling': {'next_at': account.get('next_probe_at', 0),
+                                'failures': account.get('probe_failures', 0),
+                                'suspended': account.get('probe_suspended', False),
+                                'last_attempt': account.get('last_probe_at')},
+                }
+            return result
+
     def history(self, key, *, limit=200, offset=0):
         if type(limit) is not int or not 1 <= limit <= 1000 or type(offset) is not int or offset < 0:
             raise QuotaError()

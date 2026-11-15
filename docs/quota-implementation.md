@@ -28,11 +28,15 @@ release or the complete requested product. No production account was changed.
 
 The application's data root gets `quota-history/quota.sqlite3`; credentials stay
 in their existing official keyring/authentication homes. The new database does
-not modify existing profile metadata. Schema version 1 is accepted; future or
-corrupt schemas fail closed instead of being silently rewritten. Rows and
-snapshots are validated on read as well as write. Backups use SQLite's consistent
-backup API and replace the backup only after integrity checks. There is no
-automatic destructive restore, history pruning or cross-version migration.
+not modify existing profile metadata. The SQLite database uses schema version 2.
+Existing version-1 databases with the required tables have their version marker
+advanced to 2; added JSON fields have backward-compatible defaults. Snapshot
+payloads retain their separate schema version 1. Unsupported database versions
+fail closed instead of being silently reset. Rows and snapshots are validated on
+read as well as write. Backups use SQLite's consistent backup API and replace the
+backup only after integrity checks. There is no automatic destructive restore or
+history pruning; the supported version-1-to-2 marker update is the only automatic
+database migration.
 
 Snapshots retain source, identity/context, plan/seat where known, actual window
 durations, used percentages, reset timestamps, observation time and capture

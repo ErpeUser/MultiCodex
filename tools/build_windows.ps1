@@ -38,14 +38,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Python dependencies are inconsistent' }
 
     # This official archive supplies both the runtime and its full license.
-    $archive = Join-Path $root 'build/downloads/node-v22.19.0-win-x64.zip'
-    $nodeHash = 'ea3fad0e67a991d8477d8c01344b56e69c676ccb733f065b22436994b1253f86'
+    $archive = Join-Path $root 'build/downloads/node-v22.23.5-win-x64.zip'
+    $nodeHash = '4a191082e9706866830379d577d2cc8a50c776fcd9436a8d061b063ed0d9a0e3'
     if (!(Test-Path -LiteralPath $archive)) {
-        Invoke-WebRequest 'https://nodejs.org/dist/v22.19.0/node-v22.19.0-win-x64.zip' -OutFile $archive
+        Invoke-WebRequest 'https://nodejs.org/dist/v22.23.5/node-v22.23.5-win-x64.zip' -OutFile $archive
     }
     if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLower() -ne $nodeHash) { throw 'Node archive checksum mismatch' }
     Expand-Archive -LiteralPath $archive -DestinationPath build/downloads -Force
-    $nodeRoot = Join-Path $root 'build/downloads/node-v22.19.0-win-x64'
+    $nodeRoot = Join-Path $root 'build/downloads/node-v22.23.5-win-x64'
     $node = Join-Path $nodeRoot 'node.exe'
     $oldPath = $env:PATH
     $env:PATH = "$nodeRoot;$oldPath"

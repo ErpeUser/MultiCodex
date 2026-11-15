@@ -54,7 +54,7 @@ npm ci --prefix bridge --omit=dev --ignore-scripts --no-audit --no-fund
 .venv\Scripts\python.exe run.py
 ```
 
-Der gepruefte Windows-Build verwendet CPython 3.12.10 x64 und Node 22.19.0. Python 3.14/Tcl 9 wird vom Paketierer derzeit abgewiesen. Eine passende offizielle Codex-Installation wird weiterhin benoetigt. Neue Anmeldungen verlangen `cli_auth_credentials_store = "keyring"`; siehe [Sicherheit](docs/security.md).
+Das Windows-Buildskript ist auf CPython 3.12.10 x64 und Node 22.23.5 festgelegt. Die [historischen Windows-Pruefberichte](docs/verification.md) nennen Node 22.19.0; die native Pruefung mit der aktualisierten Laufzeit steht noch aus. Python 3.14/Tcl 9 wird vom Paketierer derzeit abgewiesen. Eine passende offizielle Codex-Installation wird weiterhin benoetigt. Neue Anmeldungen verlangen `cli_auth_credentials_store = "keyring"`; siehe [Sicherheit](docs/security.md).
 
 ```powershell
 .venv\Scripts\python.exe -m unittest discover -s tests -v

@@ -22,7 +22,7 @@ jobs:
           python-version: '3.12.10'
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.19.0'
+          node-version: '22.23.5'
       - name: Locked dependencies, full tests, bundle and actual installer verification
         shell: pwsh
         run: ./tools/build_windows.ps1

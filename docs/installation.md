@@ -25,13 +25,13 @@ Programm und Daten liegen getrennt: Profile unter `%LOCALAPPDATA%\MultiCodex\pro
 
 ## Entwicklung und Build
 
-Gepruefte Werkzeuge: CPython **3.12.10 x64**, Node **22.19.0**, PyInstaller **6.20.0**, Inno Setup **6.7.3**, Windows 11 Build 26200. Python 3.14/Tcl 9 ist fuer diese Paketierung gesperrt, weil der GUI-Ressourcen-Hook die eingebetteten Tcl-Daten nicht korrekt sammelt.
+Reproduzierbarer Build: CPython **3.12.10 x64**, gebuendeltes Node **22.23.5**, PyInstaller **6.20.0**, und verifizierter Inno Setup **6.7.1 oder 6.7.3**. Der Quellbetrieb akzeptiert weiterhin Node ab **22.19.0**; die portable Windows-Runtime bleibt auf 22.23.5 festgelegt. Die Windows-2025-Workflowumgebung ist ein Server-Buildhost und ersetzt keine native Windows-11-DPI-/OAuth-Abnahme. Python 3.14/Tcl 9 ist fuer diese Paketierung gesperrt, weil der GUI-Ressourcen-Hook die eingebetteten Tcl-Daten nicht korrekt sammelt.
 
 Voraussetzungen bei Bedarf ueber die offiziellen Paketquellen installieren:
 
 ```powershell
 winget install --id Python.Python.3.12 --exact --version 3.12.10
-winget install --id JRSoftware.InnoSetup --exact --version 6.7.3
+winget install --id JRSoftware.InnoSetup --exact --version 6.7.3  # 6.7.1 ist auf windows-2025 ebenfalls zulässig
 ./tools/build_windows.ps1
 ```
 

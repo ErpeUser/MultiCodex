@@ -62,6 +62,7 @@ class WorkspaceAdminPanel(tk.Frame):
         _label(self, 'Workspace verwalten', p, size=19, bold=True).grid(row=0, column=0, sticky='w', pady=(0,6))
         note = _label(self, '1. Verbindung pr\u00fcfen  \u00b7  2. Aktion vorbereiten  \u00b7  3. Genau diese Vorschau freigeben', p, muted=True)
         note.grid(row=1, column=0, sticky='ew', pady=(0,12))
+        self.note = note
         connection = tk.Frame(self, bg=p['canvas']); connection.grid(row=2,column=0,sticky='ew')
         self.connection = connection
         for col in (0,1): connection.grid_columnconfigure(col,weight=1,uniform='connection')
@@ -163,7 +164,7 @@ class WorkspaceAdminPanel(tk.Frame):
                 label.grid(row=4,column=0,sticky='w',padx=10,pady=(8,3))
                 self.quota_combo.grid(row=5,column=0,sticky='ew',padx=10,ipady=5,pady=(0,5))
                 self.prepare_button.grid(row=5,column=1,sticky='ew',padx=10,pady=(3,10))
-        self.status.configure(wraplength=max(200,width));self.confirm_box.configure(wraplength=max(200,width-20))
+        self.note.configure(wraplength=max(200,width));self.status.configure(wraplength=max(200,width));self.confirm_box.configure(wraplength=max(200,width-20))
 
     def _entry(self,parent,label,variable,row,col,secret=False):
         field_label=_label(parent,label,self.p,size=9,muted=True)

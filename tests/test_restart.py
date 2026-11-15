@@ -159,6 +159,87 @@ class RestartTests(unittest.TestCase):
         self.ctl.switch('Work', 'default', confirmed=True)
         self.assertEqual(self.store.get('Work').account_email, 'old@example.invalid')
 
+    def test_login_preserves_renamed_previous_session(self):
+        other_metadata = {name: (self.store.root/name/'profile.json').read_bytes()
+                          for name in ('Research', 'Private')}
+        for reauthenticate in (False, True):
+            with self.subTest(reauthenticate=reauthenticate):
+                profile = self.store.get('Work')
+                previous = self.auth.describe(profile.codex_home)
+                self.sessions.register('Work', profile.session_id, previous)
+                self.sessions.rename('Work', profile.session_id, 'Renamed saved account')
+                before = {row['id']: row for row in self.sessions.list('Work')}
+                if reauthenticate:
+                    self.auth.next_identity = previous
+                self.ctl.login('Work', confirmed=True, reauthenticate=reauthenticate,
+                               on_browser=lambda _: None, cancel=threading.Event())
+                stored = {row['id']: row for row in self.sessions.list('Work')}
+                self.assertEqual(stored[profile.session_id]['label'], 'Renamed saved account')
+                self.assertEqual(stored[profile.session_id]['email'], previous.email)
+                active = self.store.get('Work').session_id
+                self.assertNotIn(active, before)
+                self.assertEqual(stored[active]['label'], self.auth.next_identity.email)
+                for sid, row in before.items():
+                    if sid != profile.session_id:
+                        self.assertEqual(stored[sid], row)
+                self.assertIsNone(self.sessions.journal('Work'))
+                self.assertEqual(self.instances.live, {'Work', 'Research', 'Private'})
+                for name, metadata in other_metadata.items():
+                    self.assertEqual((self.store.root/name/'profile.json').read_bytes(), metadata)
+        self.assertEqual(list(self.store.root.rglob('auth.json')), [])
+
+    def test_registration_keeps_label_only_for_matching_identity(self):
+        cases = [
+            ('same', 'account-a', 'old@example.invalid', 'account-a', True),
+            ('email-case', 'account-a', 'OLD@EXAMPLE.INVALID', 'account-a', True),
+            ('no-ids', None, 'old@example.invalid', None, True),
+            ('learned-id', None, 'old@example.invalid', 'account-a', True),
+            ('changed-id', 'account-a', 'old@example.invalid', 'account-b', False),
+            ('missing-id', 'account-a', 'old@example.invalid', None, False),
+            ('changed-email', 'account-a', 'other@example.invalid', 'account-a', False),
+        ]
+        for name, saved_id, email, observed_id, keep_label in cases:
+            with self.subTest(case=name):
+                saved = AccountIdentity('old@example.invalid', 'plus', saved_id)
+                observed = AccountIdentity(email, 'pro', observed_id)
+                self.sessions.register('Work', 'default', saved)
+                self.sessions.rename('Work', 'default', 'My account name')
+                with patch('multicodex.sessions.time.time', return_value=1_900_000_000):
+                    self.sessions.register('Work', 'default', observed)
+                row = next(row for row in self.sessions.list('Work') if row['id'] == 'default')
+                self.assertEqual(row['label'], 'My account name' if keep_label else email)
+                self.assertEqual({key: row[key] for key in observed.public()}, observed.public())
+                self.assertEqual(row['verified_at'], 1_900_000_000)
+                self.assertEqual(self.store.get('Work').session_id, 'default')
+
+    def test_registration_retains_label_schema_and_new_session_defaults(self):
+        identity = AccountIdentity('old@example.invalid', 'plus', 'account-a')
+        self.sessions.register('Work', 'default', identity)
+        self.sessions.rename('Work', 'default', 'Do not transfer this name')
+        sid, _ = self.sessions.prepare('Work')
+        self.sessions.register('Work', sid, identity)
+        stored = {row['id']: row for row in self.sessions.list('Work')}
+        self.assertEqual(stored[sid]['label'], identity.email)
+        self.assertEqual(stored['default']['label'], 'Do not transfer this name')
+        metadata_path = self.store.root/'Work'/'profile.json'
+        for present, label in ((False, None), (True, None), (True, ''), (True, '   ')):
+            with self.subTest(present=present, label=label):
+                data = json.loads(metadata_path.read_text())
+                if present:
+                    data['sessions']['default']['label'] = label
+                else:
+                    data['sessions']['default'].pop('label', None)
+                metadata_path.write_text(json.dumps(data), encoding='utf-8')
+                self.sessions.register('Work', 'default', identity)
+                row = next(row for row in self.sessions.list('Work') if row['id'] == 'default')
+                self.assertEqual(row['label'], identity.email)
+        data = json.loads(metadata_path.read_text())
+        data['sessions']['default']['label'] = 'L' * 120
+        metadata_path.write_text(json.dumps(data), encoding='utf-8')
+        self.sessions.register('Work', 'default', identity)
+        row = next(row for row in self.sessions.list('Work') if row['id'] == 'default')
+        self.assertEqual(row['label'], 'L' * 120)
+
     def test_corrupt_session_catalogue_does_not_fall_back_to_live_auth(self):
         profile = self.store._entry('Work')
         (profile / 'profile.json').write_text('{"version": 1,', encoding='utf-8')

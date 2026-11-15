@@ -85,8 +85,14 @@ class SessionStore:
             if not isinstance(identity, AccountIdentity):
                 raise ProfileError('Only verified account metadata can be registered')
             data = self._data(name)
+            previous = data.get('sessions', {}).get(session_id)
+            label = identity.email
+            if previous and (previous.get('label') or '').strip():
+                saved = AccountIdentity(previous['email'], previous.get('plan'), previous.get('account_id'))
+                if saved.same_account(identity):
+                    label = previous['label']
             data.setdefault('sessions', {})[session_id] = {**identity.public(), 'verified_at': int(time.time()),
-                                                          'label': identity.email}
+                                                          'label': label}
             self._save(name, data)
 
     def identity(self, name, session_id):

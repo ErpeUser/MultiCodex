@@ -5,7 +5,7 @@ import time
 import tkinter as tk
 from tkinter import ttk
 from .quota_ui import _label, _button, _table_style, _family
-from .ui_tokens import THEMES
+from .ui_tokens import THEMES, BREAKPOINTS
 
 ACTION_TEXT = {
     'create_invite': 'Mitglied einladen', 'resend_invite': 'Einladung erneut senden',
@@ -63,6 +63,7 @@ class WorkspaceAdminPanel(tk.Frame):
         note = _label(self, '1. Verbindung pr\u00fcfen  \u00b7  2. Aktion vorbereiten  \u00b7  3. Genau diese Vorschau freigeben', p, muted=True)
         note.grid(row=1, column=0, sticky='ew', pady=(0,12))
         connection = tk.Frame(self, bg=p['canvas']); connection.grid(row=2,column=0,sticky='ew')
+        self.connection = connection
         for col in (0,1): connection.grid_columnconfigure(col,weight=1,uniform='connection')
         self.workspace = tk.StringVar(self); self.action = tk.StringVar(self)
         self.email = tk.StringVar(self); self.role = tk.StringVar(self); self.seat = tk.StringVar(self)
@@ -77,6 +78,7 @@ class WorkspaceAdminPanel(tk.Frame):
             ('Art','Konto / ID','Rolle','Seat'), (100,260,160,140), height=5)
         self.directory.bind('<<TreeviewSelect>>',self._directory_selected)
         form = tk.Frame(self,bg=p['panel']);form.grid(row=5,column=0,sticky='ew',pady=12)
+        self.form = form
         for col in (0,1):form.grid_columnconfigure(col,weight=1,uniform='form')
         self.action_combo=self._combo(form,'Aktion',self.action,0,0,prefix)
         self.email_entry=self._entry(form,'E-Mail (f\u00fcr neue Einladung)',self.email,0,1)
@@ -107,22 +109,78 @@ class WorkspaceAdminPanel(tk.Frame):
         for variable in (self.workspace,self.email,self.role,self.seat,self.quota):
             variable.trace_add('write',lambda *_:self._invalidate())
         self.action.trace_add('write',lambda *_:self._change_action())
-        self.bind('<Configure>',lambda e:(note.configure(wraplength=max(200,e.width-20)),
-            self.status.configure(wraplength=max(200,e.width-20)),self.confirm_box.configure(wraplength=max(200,e.width-40))))
+        self._compact = None
+        self.bind('<Configure>',self._resize)
         self._controls()
 
+    def _resize(self,event):
+        if event.widget is not self:
+            return
+        width=max(260,event.width-20)
+        compact=width < BREAKPOINTS['stack']
+        # The two-column form is efficient on the normal shell width, while a
+        # stacked layout keeps long German labels usable at 900px/125% DPI.
+        if compact != self._compact:
+            self._compact=compact
+            for widget in (self.workspace_entry,self.key,self.connect_button):
+                widget.grid_forget()
+                label=getattr(widget,'_field_label',None)
+                if label is not None:label.grid_forget()
+            form_widgets=(self.action_combo,self.email_entry,self.role_combo,self.seat_combo,self.quota_combo,self.prepare_button)
+            for widget in form_widgets:
+                widget.grid_forget()
+                label=getattr(widget,'_field_label',None)
+                if label is not None:label.grid_forget()
+            if compact:
+                for index,widget in enumerate((self.workspace_entry,self.key)):
+                    label=widget._field_label
+                    label.grid(row=index*2,column=0,columnspan=2,sticky='w',padx=10,pady=(8,3))
+                    widget.grid(row=index*2+1,column=0,columnspan=2,sticky='ew',padx=10,ipady=6,pady=(0,5))
+                self.connect_button.grid(row=4,column=0,columnspan=2,sticky='ew',padx=10,pady=(8,12))
+                for index,widget in enumerate((self.action_combo,self.email_entry,self.role_combo,self.seat_combo,self.quota_combo)):
+                    label=widget._field_label
+                    label.grid(row=index*2,column=0,columnspan=2,sticky='w',padx=10,pady=(8,3))
+                    widget.grid(row=index*2+1,column=0,columnspan=2,sticky='ew',padx=10,ipady=5,pady=(0,5))
+                self.prepare_button.grid(row=10,column=0,columnspan=2,sticky='ew',padx=10,pady=(3,10))
+            else:
+                for widget in (self.workspace_entry,self.key):
+                    label=widget._field_label
+                    col=0 if widget is self.workspace_entry else 1
+                    label.grid(row=0,column=col,sticky='w',padx=10,pady=(8,3))
+                    widget.grid(row=1,column=col,sticky='ew',padx=10,ipady=6,pady=(0,5))
+                self.connect_button.grid(row=2,column=0,columnspan=2,sticky='w',pady=(8,12))
+                for widget in (self.action_combo,self.email_entry):
+                    label=widget._field_label
+                    col=0 if widget is self.action_combo else 1
+                    label.grid(row=0,column=col,sticky='w',padx=10,pady=(8,3))
+                    widget.grid(row=1,column=col,sticky='ew',padx=10,ipady=5,pady=(0,5))
+                for widget in (self.role_combo,self.seat_combo):
+                    label=widget._field_label
+                    col=0 if widget is self.role_combo else 1
+                    label.grid(row=2,column=col,sticky='w',padx=10,pady=(8,3))
+                    widget.grid(row=3,column=col,sticky='ew',padx=10,ipady=5,pady=(0,5))
+                label=self.quota_combo._field_label
+                label.grid(row=4,column=0,sticky='w',padx=10,pady=(8,3))
+                self.quota_combo.grid(row=5,column=0,sticky='ew',padx=10,ipady=5,pady=(0,5))
+                self.prepare_button.grid(row=5,column=1,sticky='ew',padx=10,pady=(3,10))
+        self.status.configure(wraplength=max(200,width));self.confirm_box.configure(wraplength=max(200,width-20))
+
     def _entry(self,parent,label,variable,row,col,secret=False):
-        _label(parent,label,self.p,size=9,muted=True).grid(row=row,column=col,sticky='w',padx=10,pady=(8,3))
+        field_label=_label(parent,label,self.p,size=9,muted=True)
+        field_label.grid(row=row,column=col,sticky='w',padx=10,pady=(8,3))
         widget=tk.Entry(parent,textvariable=variable,show='*' if secret else '',bg=self.p['panel'],fg=self.p['text'],
             insertbackground=self.p['text'],relief='flat',highlightthickness=1,highlightbackground=self.p['border'],
             highlightcolor=self.p['accent'],font=(_family(self),10),width=18)
         widget.grid(row=row+1,column=col,sticky='ew',padx=10,ipady=6,pady=(0,5))
+        widget._field_label=field_label
         return widget
 
     def _combo(self,parent,label,variable,row,col,prefix):
-        _label(parent,label,self.p,size=9,muted=True).grid(row=row,column=col,sticky='w',padx=10,pady=(8,3))
+        field_label=_label(parent,label,self.p,size=9,muted=True)
+        field_label.grid(row=row,column=col,sticky='w',padx=10,pady=(8,3))
         combo=ttk.Combobox(parent,textvariable=variable,state='readonly',style=prefix+'.TCombobox',width=18)
         combo.grid(row=row+1,column=col,sticky='ew',padx=10,ipady=5,pady=(0,5))
+        combo._field_label=field_label
         return combo
 
     def _table(self,row,columns,labels,widths,height):
@@ -271,3 +329,4 @@ class WorkspaceAdminPanel(tk.Frame):
         self.status.configure(text=(f'API-Vertrag {model.get("contract_version") or "nicht geladen"}: {count} Verwaltungsaktionen verf\u00fcgbar. '
             + ('Verzeichnis muss nach \u00c4nderungen neu geladen werden.' if model.get('observed_at') is None else 'Berechtigungen werden bei jeder Aktion serverseitig gepr\u00fcft.')))
         self._controls()
+

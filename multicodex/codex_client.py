@@ -51,14 +51,20 @@ class AccountIdentity:
         plan = account.get('planType')
         if not isinstance(plan, str) or len(plan) > 64 or re.search(r'[\x00-\x1f]', plan):
             plan = None
-        ident = account.get('accountId', account.get('id'))
+        # Providers have emitted both keys over time; a null accountId must
+        # not hide a valid legacy id fallback.
+        ident = account.get('accountId') or account.get('id')
         if not isinstance(ident, str) or not ident or len(ident) > 256 or re.search(r'[\x00-\x1f]', ident):
             ident = None
         return cls(email, plan, ident)
 
     def same_account(self, other: 'AccountIdentity') -> bool:
-        return (self.email.casefold() == other.email.casefold()
-                and (self.account_id is None or self.account_id == other.account_id))
+        if not isinstance(other, AccountIdentity):
+            return False
+        ids_match = ((self.account_id is None and other.account_id is None) or
+                     (self.account_id is not None and other.account_id is not None and
+                      self.account_id == other.account_id))
+        return self.email.casefold() == other.email.casefold() and ids_match
 
     def public(self) -> dict:
         return {'email': self.email, 'plan': self.plan, 'account_id': self.account_id}

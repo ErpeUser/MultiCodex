@@ -23,3 +23,10 @@ All widget changes occur on the Tk thread. Rendering consumes cached snapshots o
 Only an operation's confirmed backend result may report completion. A running process and local identity metadata do not prove the desktop's live account or quota. Figma sample records are not application data.
 
 Open release requirements: safe existing-pool credential adoption, real Windows GUI/DPI/keyboard validation, real OAuth and multi-window identity validation, complete dependency locks, installer acceptance and private GitHub publication.
+
+
+## Responsive and focus acceptance (15 November 2026)
+
+The shell and native views use semantic tokens for spacing and state. At compact content widths, action controls and activation forms stack to one column; quota metrics reflow from three to two to one columns, and long German copy wraps to the measured widget width. The selected row, query, sort order and keyboard focus must survive data refreshes.
+
+Focus is visible in both themes. Return and Space invoke the focused action, Ctrl+R refreshes, Ctrl+F focuses table search and Escape requests login cancellation. Unknown, cached, removed and disabled states always include text and do not become a zero or a color-only badge. Release acceptance still requires native Windows 11 checks at 900x640 and 1180x760 with 100/125/150/200% DPI, dark/light themes and keyboard-only navigation.

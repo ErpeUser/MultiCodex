@@ -193,10 +193,15 @@ class MultiCodexApp(ctk.CTk):
         inset=SPACING['lg'] if event.width < 1000 else SPACING['xl']
         self.page_frame.grid_configure(padx=inset)
 
-    @staticmethod
-    def _keyboard_button(button):
+    def _keyboard_button(self, button):
         button.bind('<Return>', lambda event: button.invoke())
         button.bind('<space>', lambda event: button.invoke())
+        # CTkButton has no native Tk highlight ring.  A temporary accent
+        # border keeps keyboard focus visible in both themes and disappears
+        # when focus leaves the control.
+        button.bind('<FocusIn>', lambda event: button.configure(
+            border_width=2, border_color=self.palette['accent']))
+        button.bind('<FocusOut>', lambda event: button.configure(border_width=0))
 
     def _set_page(self, page):
         if not self.closing:

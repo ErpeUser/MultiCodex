@@ -38,9 +38,13 @@ class ProfileActivation:
         config = self.quota.settings.load()
         if not config['automatic_activation_enabled']: raise ActivationError('DISABLED')
         account = self.quota.store.account(account_key)
+        expected_revision = account['context_revision']
         if account['profile_id'] not in config['allowed_profiles']:
             raise ActivationError('NOT_ALLOWLISTED')
         self.quota._sync()
+        account = self.quota.store.account(account_key)
+        if account['context_revision'] != expected_revision:
+            raise ActivationError('CONTEXT_CHANGED')
         if self.quota.bindings.get(account_key) != (account['profile_id'], account['session_id']):
             raise ActivationError('AUTH_REQUIRED')
         return self.runs.enqueue(account_key=account_key, profile=account['profile_id'],

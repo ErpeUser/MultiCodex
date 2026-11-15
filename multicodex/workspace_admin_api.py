@@ -195,8 +195,6 @@ class AdminContract:
             raise AdminAPIError()
         if any(k not in self._KEYWORDS | self._ANNOTATIONS and not k.startswith('x-') for k in schema):
             raise AdminAPIError('UNSUPPORTED_SCHEMA')
-        if value is None and schema.get('nullable') is True:
-            return
         for union, count in (('oneOf', 1), ('anyOf', None), ('allOf', 'all')):
             if union not in schema:
                 continue
@@ -216,6 +214,9 @@ class AdminContract:
         kinds = schema.get('type')
         if isinstance(kinds, str):
             kinds = [kinds]
+            # OpenAPI 3.0 nullable widens this type, not other constraints.
+            if schema.get('nullable') is True and str(self._doc['openapi']).startswith('3.0.'):
+                kinds.append('null')
         checks = {'object': type(value) is dict, 'array': type(value) is list,
             'string': type(value) is str, 'integer': type(value) is int,
             'number': type(value) in (int, float) and math.isfinite(value),

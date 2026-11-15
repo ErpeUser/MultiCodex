@@ -118,6 +118,85 @@ class AdminContractTests(unittest.TestCase):
         self.assertEqual(c.request('get_user','w',target='u')[1], BASE+'/manage/workspaces/w/users/u')
 
 class AdminAPITests(unittest.TestCase):
+    def test_nullable_requests_still_enforce_other_constraints(self):
+        cases = [
+            ('3.0.3', {'type':'string','nullable':True,'enum':['standard-user']}, 'INVALID_REQUEST'),
+            ('3.0.3', {'type':'string','nullable':True,'allOf':[{'enum':['standard-user']}]}, 'INVALID_REQUEST'),
+            ('3.0.3', {'type':'string','nullable':True,'anyOf':[{'type':'string'}]}, 'INVALID_REQUEST'),
+            ('3.0.3', {'type':'string','nullable':True,'oneOf':[
+                {'type':'string','nullable':True}, {'type':'string','nullable':True}]}, 'INVALID_REQUEST'),
+            ('3.0.3', {'nullable':True,'allOf':[{'type':'string'}]}, 'INVALID_REQUEST'),
+            ('3.0.3', {'type':'string','nullable':True,'allOf':[{'not':{'enum':[None]}}]}, 'UNSUPPORTED_SCHEMA'),
+            ('3.1.0', {'type':'string','nullable':True}, 'INVALID_REQUEST'),
+            ('3.1.0', {'type':['string','null'],'nullable':True,'enum':['standard-user']}, 'INVALID_REQUEST'),
+            ('3.1.0', {'type':['string','null'],'nullable':True,'const':'standard-user'}, 'INVALID_REQUEST'),
+        ]
+        for version, schema, code in cases:
+            with self.subTest(version=version, schema=schema):
+                d = copy.deepcopy(contract()); d['openapi'] = version
+                d['components']['schemas']['Update']['properties']['role'] = schema
+                t = RecordingTransport(); api = AdminAPI(AdminContract(d), t)
+                with self.assertRaises(AdminAPIError) as caught:
+                    api.call('update_user','w','test-key',target='u',body={'role':None},allow_write=True)
+                self.assertEqual(caught.exception.code, code)
+                self.assertFalse(caught.exception.outcome_unknown)
+                self.assertEqual(t.requests, [])
+
+    def test_schema_permitted_null_requests_remain_valid(self):
+        cases = [
+            ('3.0.3', {'type':'string','nullable':True}),
+            ('3.0.3', {'type':'string','nullable':True,'enum':['standard-user',None]}),
+            ('3.0.3', {'type':'string','nullable':True,'allOf':[{'enum':[None]}]}),
+            ('3.0.3', {'type':'string','nullable':True,'anyOf':[{'type':'string','nullable':True}]}),
+            ('3.0.3', {'type':'string','nullable':True,'oneOf':[
+                {'type':'string','nullable':True}, {'type':'string'}]}),
+            ('3.1.0', {'type':['string','null'],'enum':['standard-user',None]}),
+            ('3.1.0', {'type':['string','null'],'nullable':True,'const':None}),
+        ]
+        for version, schema in cases:
+            with self.subTest(version=version, schema=schema):
+                d = copy.deepcopy(contract()); d['openapi'] = version
+                d['components']['schemas']['Update']['properties']['role'] = schema
+                t = RecordingTransport(); api = AdminAPI(AdminContract(d), t)
+                api.call('update_user','w','test-key',target='u',body={'role':None},allow_write=True)
+                self.assertEqual(t.requests, [('PATCH',BASE+'/manage/workspaces/w/users/u',{'role':None})])
+
+    def test_nullable_responses_still_enforce_other_constraints(self):
+        cases = [
+            ('3.0.3', {'type':'string','nullable':True,'enum':['standard-user']}),
+            ('3.0.3', {'type':'string','nullable':True,'allOf':[{'type':'string'}]}),
+            ('3.1.0', {'type':'string','nullable':True}),
+            ('3.1.0', {'type':['string','null'],'nullable':True,'const':'standard-user'}),
+        ]
+        for version, schema in cases:
+            for action, method in (('get_user','get'), ('update_user','patch')):
+                with self.subTest(version=version, schema=schema, action=action):
+                    d = copy.deepcopy(contract()); d['openapi'] = version
+                    response = d['paths']['/manage/workspaces/{workspace_id}/users/{user_id}'][method]
+                    response['responses']['200']['content']['application/json']['schema']['properties']['role'] = schema
+                    t = RecordingTransport(value={'id':'u','role':None,'is_scim_managed':False})
+                    api = AdminAPI(AdminContract(d), t); write = action == 'update_user'
+                    with self.assertRaises(AdminAPIError) as caught:
+                        api.call(action,'w','test-key',target='u',
+                                 body={'role':'standard-user'} if write else None,allow_write=write)
+                    self.assertEqual(caught.exception.code, 'RESPONSE_INVALID')
+                    self.assertEqual(caught.exception.outcome_unknown, write)
+                    self.assertEqual(len(t.requests), 1)
+
+    def test_schema_permitted_null_responses_remain_valid(self):
+        for version, schema in [
+            ('3.0.3', {'type':'string','nullable':True,'enum':['standard-user',None]}),
+            ('3.1.0', {'type':['string','null'],'const':None}),
+        ]:
+            with self.subTest(version=version):
+                d = copy.deepcopy(contract()); d['openapi'] = version
+                response = d['paths']['/manage/workspaces/{workspace_id}/users/{user_id}']['get']
+                response['responses']['200']['content']['application/json']['schema']['properties']['role'] = schema
+                value = {'id':'u','role':None,'is_scim_managed':False}
+                t = RecordingTransport(value=value)
+                self.assertEqual(AdminAPI(AdminContract(d), t).call('get_user','w','test-key',target='u'), value)
+                self.assertEqual(len(t.requests), 1)
+
     def test_writes_require_explicit_authorization_per_call(self):
         t=RecordingTransport();api=AdminAPI(AdminContract(contract()),t)
         with self.assertRaises(AdminAPIError):api.call('update_user','w','test-key',target='u',body={'role':'standard-user'})

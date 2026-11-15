@@ -531,33 +531,34 @@ class QuotaStore:
         return snapshot
 
     def backup(self):
-        """Explicit consistent backup. Never auto-replace a damaged original."""
-        destination = self.root / 'quota.previous.sqlite3'
-        _safe_path(destination)
-        temp_path = None
-        try:
-            fd, temp = tempfile.mkstemp(prefix='.quota-backup-', dir=self.root)
-            os.close(fd)
-            temp_path = Path(temp)
-            self._check_paths()
-            if not self.path.is_file():
-                raise QuotaError('STORAGE')
-            with closing(sqlite3.connect(self.path.as_uri() + '?mode=ro', uri=True)) as source, closing(sqlite3.connect(temp_path)) as target:
-                if source.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
-                    raise QuotaError('STORAGE')
-                source.backup(target)
-            # Windows rejects fsync on a read-only handle (EBADF/WinError 9).
-            # Open the staged backup read-write solely for the durability barrier.
-            with temp_path.open('r+b') as stream:
-                os.fsync(stream.fileno())
+        with self._storage_guard():
+            """Explicit consistent backup. Never auto-replace a damaged original."""
+            destination = self.root / 'quota.previous.sqlite3'
             _safe_path(destination)
-            os.replace(temp_path, destination)
-            return destination
-        except (OSError, sqlite3.Error) as exc:
-            raise QuotaError('STORAGE') from exc
-        finally:
-            if temp_path is not None:
-                temp_path.unlink(missing_ok=True)
+            temp_path = None
+            try:
+                fd, temp = tempfile.mkstemp(prefix='.quota-backup-', dir=self.root)
+                os.close(fd)
+                temp_path = Path(temp)
+                self._check_paths()
+                if not self.path.is_file():
+                    raise QuotaError('STORAGE')
+                with closing(sqlite3.connect(self.path.as_uri() + '?mode=ro', uri=True)) as source, closing(sqlite3.connect(temp_path)) as target:
+                    if source.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
+                        raise QuotaError('STORAGE')
+                    source.backup(target)
+                # Windows rejects fsync on a read-only handle (EBADF/WinError 9).
+                # Open the staged backup read-write solely for the durability barrier.
+                with temp_path.open('r+b') as stream:
+                    os.fsync(stream.fileno())
+                _safe_path(destination)
+                os.replace(temp_path, destination)
+                return destination
+            except (OSError, sqlite3.Error) as exc:
+                raise QuotaError('STORAGE') from exc
+            finally:
+                if temp_path is not None:
+                    temp_path.unlink(missing_ok=True)
 
     def restore_from_backup(self, backup_path=None):
         """Restore an explicitly verified backup while preserving the current file.

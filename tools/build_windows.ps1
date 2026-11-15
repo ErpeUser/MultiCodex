@@ -27,10 +27,6 @@ try {
     if (!$InnoCompiler -or !(Test-Path -LiteralPath $InnoCompiler)) {
         throw 'Install a verified Inno Setup 6.7.1 or 6.7.3 compiler before building'
     }
-    $innoVersion = (Get-Item -LiteralPath $InnoCompiler).VersionInfo.FileVersion
-    if ($innoVersion -match '^([0-9]+\.[0-9]+\.[0-9]+)') { $innoVersion = $Matches[1] }
-    if ($innoVersion -notin @('6.7.1','6.7.3')) { throw "Unsupported Inno Setup version: $innoVersion" }
-
     if (!(Test-Path .venv/Scripts/python.exe)) {
         & python -c 'import sys; assert sys.version_info[:3] == (3, 12, 10) and sys.maxsize > 2**32'
         if ($LASTEXITCODE -eq 0) {
@@ -43,6 +39,9 @@ try {
     $python = Join-Path $root '.venv/Scripts/python.exe'
     & $python -c 'import sys; assert sys.version_info[:3] == (3, 12, 10) and sys.maxsize > 2**32, "Build requires CPython 3.12.10 x64"'
     if ($LASTEXITCODE -ne 0) { throw 'Use a CPython 3.12.10 x64 virtual environment' }
+    $innoVersion = (& $python tools/compiler_identity.py $InnoCompiler | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler identity could not be verified' }
+    if ($innoVersion -notin @('6.7.1','6.7.3')) { throw "Unsupported Inno Setup version: $innoVersion" }
     & $python -m pip install --only-binary=:all: --require-hashes -r requirements-build.windows-x64.lock
     if ($LASTEXITCODE -ne 0) { throw 'Locked Python installation failed' }
     & $python -m pip check
@@ -64,6 +63,8 @@ try {
     try {
         & (Join-Path $nodeRoot 'npm.cmd') ci --prefix bridge --omit=dev --ignore-scripts --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw 'Locked Node installation failed' }
+        & $node bridge/smoke_installed.mjs bridge *> evidence/source-storage-smoke.json
+        if ($LASTEXITCODE -ne 0) { throw 'Installed source storage facade smoke failed' }
         & $python -m unittest discover -s tests -v *> evidence/python-tests.txt
         if ($LASTEXITCODE -ne 0) { Get-Content evidence/python-tests.txt; throw 'Python tests failed' }
         & $node --test bridge/tests/service.test.mjs *> evidence/node-tests.txt
@@ -99,6 +100,8 @@ try {
     Copy-Item bridge/package-lock.json evidence/resolved-node-lock.json -Force
     Copy-Item requirements-build.windows-x64.lock evidence/resolved-python-lock.txt -Force
     & $python -m pip freeze | Set-Content evidence/resolved-python-packages.txt
+    & $node bridge/smoke_installed.mjs $runtime *> evidence/bundled-storage-smoke.json
+    if ($LASTEXITCODE -ne 0) { throw 'Bundled storage facade smoke failed' }
 
     foreach ($mode in @('self-check','gui-smoke')) {
         $name = if ($mode -eq 'self-check') { 'runtime' } else { 'gui' }
@@ -110,6 +113,17 @@ try {
         $process.Refresh()
         if ($process.ExitCode -ne 0 -or !(Get-Content -Raw $report | ConvertFrom-Json).ready) { throw "Packaged $name check failed" }
     }
+
+    $bundledNodeVersion = (& $node --version | Out-String).Trim().TrimStart('v')
+    if ($LASTEXITCODE -ne 0 -or $bundledNodeVersion -ne '22.23.5') { throw 'Bundled Node version differs from pinned toolchain' }
+    & $python tools/supply_chain.py --bundle $bundle --python-lock requirements-build.windows-x64.lock --node-lock bridge/package-lock.json --commit $initialCommit --node-version $bundledNodeVersion --node-archive-sha256 $nodeHash *> evidence/supply-chain-summary.json
+    if ($LASTEXITCODE -ne 0) { throw 'Post-build SBOM inventory failed' }
+    foreach ($name in @('SBOM.cdx.json','license-report.json')) {
+        Copy-Item -LiteralPath (Join-Path $bundle $name) -Destination (Join-Path $root "evidence/$name")
+        Copy-Item -LiteralPath (Join-Path $bundle $name) -Destination (Join-Path $root "output/$name")
+    }
+    $licenseReport = Get-Content -Raw (Join-Path $bundle 'license-report.json') | ConvertFrom-Json
+    if (!$licenseReport.ready) { Write-Warning 'Development bundle built with explicit license-review blockers; publication remains blocked.' }
 
     $version = (& $python -c 'from multicodex import __version__; print(__version__)').Trim()
     if ($version -notmatch '^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$') { throw 'Invalid build version' }
@@ -152,6 +166,9 @@ try {
         inno_version = $innoVersion
         compiler_sha256 = (Get-FileHash -LiteralPath $InnoCompiler -Algorithm SHA256).Hash.ToLower()
         setup_sha256 = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLower()
+        sbom_sha256 = (Get-FileHash -LiteralPath (Join-Path $bundle 'SBOM.cdx.json') -Algorithm SHA256).Hash.ToLower()
+        license_report_sha256 = (Get-FileHash -LiteralPath (Join-Path $bundle 'license-report.json') -Algorithm SHA256).Hash.ToLower()
+        licenses_ready = $licenseReport.ready
         scope = 'local development build; native OAuth/multi-instance acceptance is still required for release'
     } | ConvertTo-Json | Set-Content evidence/build.json
     Compress-Archive -Path $bundle -DestinationPath "output/MultiCodex-$version-win-x64-portable.zip" -Force

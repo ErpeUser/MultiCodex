@@ -8,7 +8,7 @@ from .locks import BusyError
 from .profiles import validate_name, ProfileError
 from .quota import evaluate_snapshot
 from .quota_monitor import QuotaMonitor
-from .quota_store import QuotaStore
+from .quota_store import QuotaStore, QuotaError
 from .quota_view import summarize_rows
 
 
@@ -49,6 +49,9 @@ class QuotaService:
                         candidates=known.get(base, [])
                         if workspace is not None:
                             candidates=[row for row in candidates if row.get('workspace_id') == workspace]
+                        elif any(row.get('workspace_id') is not None for row in candidates):
+                            issues.append({'profile':profile.name,'code':'WORKSPACE_CONTEXT_REQUIRED'})
+                            continue
                         if len(candidates) > 1:
                             issues.append({'profile':profile.name,'code':'WORKSPACE_CONTEXT_REQUIRED'})
                             continue
@@ -84,9 +87,23 @@ class QuotaService:
                     (expected.account_id is None) != (account.get('account_id') is None) or
                     (expected.account_id is not None and expected.account_id != account.get('account_id'))):
                     raise CodexError('ACCOUNT_MISMATCH')
+                def context():
+                    rows = [row for row in self.application.sessions.list(name) if row['id'] == sid]
+                    if len(rows) != 1:
+                        raise QuotaError('CONTEXT_CHANGED')
+                    row = rows[0]
+                    return (row['email'].casefold(), row.get('account_id'), row.get('workspace_id'))
+                original_context = (account['email'].casefold(), account.get('account_id'),
+                                    account.get('workspace_id'))
+                if context() != original_context:
+                    raise QuotaError('CONTEXT_CHANGED')
                 home, fingerprint = self.application.sessions.home_fingerprint(name, sid)
                 home = self.application.sessions.revalidate_home(name, sid, fingerprint)
-                return self.provider.observe(home,expected=expected,cancel=cancel,secure=True)
+                result = self.provider.observe(home,expected=expected,cancel=cancel,secure=True)
+                self.application.sessions.revalidate_home(name, sid, fingerprint)
+                if context() != original_context:
+                    raise QuotaError('CONTEXT_CHANGED')
+                return result
         except BusyError as exc:
             # The monitor allowlists this code; no filesystem/path exception is exposed.
             error=RuntimeError('BUSY');error.code='BUSY'

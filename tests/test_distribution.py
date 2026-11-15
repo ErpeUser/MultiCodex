@@ -28,9 +28,9 @@ class DistributionTests(unittest.TestCase):
     def test_workflows_pin_actions_and_cover_pull_requests(self):
         for name in ('windows.yml', 'feature-checks.yml'):
             workflow = (ROOT/'.github'/'workflows'/name).read_text(encoding='utf8')
-            refs = re.findall(r'uses:\s*([^\\s]+)@([0-9a-f]{40})', workflow)
+            refs = re.findall(r'uses:\s*([^\s]+)@([0-9a-f]{40})', workflow)
             self.assertTrue(refs, name)
-            self.assertNotRegex(workflow, r'uses:\s*[^\\s]+@v[0-9]')
+            self.assertNotRegex(workflow, r'uses:\s*[^\s]+@v[0-9]')
             self.assertIn('persist-credentials: false', workflow)
         feature = (ROOT/'.github'/'workflows'/'feature-checks.yml').read_text(encoding='utf8')
         self.assertIn('pull_request:', feature)

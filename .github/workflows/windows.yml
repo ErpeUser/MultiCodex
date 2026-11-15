@@ -63,7 +63,7 @@ jobs:
         env:
           MULTICODEX_RELEASE_ACCEPTANCE: ${{ vars.MULTICODEX_RELEASE_ACCEPTANCE }}
         run: |
-          python tools/release_gate.py --commit "$GITHUB_SHA" --setup release-assets/*.exe
+          python tools/release_gate.py --commit "$GITHUB_SHA" --setup release-assets/*.exe --sbom release-assets/SBOM.cdx.json --license-report release-assets/license-report.json
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           files: release-assets/*

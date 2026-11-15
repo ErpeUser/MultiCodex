@@ -30,6 +30,22 @@ from .desktop_views import ActionTable, MetricStrip, dashboard_metrics, profile_
 PAGES = ['Overview', 'Accounts', 'Instances', 'Usage', 'Diagnostics', 'Settings']
 LABELS = dict(zip(PAGES, ['\u00dcbersicht', 'Konten', 'Instanzen', 'Nutzung', 'Diagnose', 'Einstellungen']))
 FIGMA_URL = 'https://www.figma.com/design/iKeNG6k7TfG5U98yfqKFxI'
+# Official cancellation may consume 2s for its RPC, followed by up to 6s of
+# owned subprocess/reader cleanup. Leave that bounded cleanup time to finish.
+SHUTDOWN_GRACE_SECONDS = 10.0
+
+
+def _publish_login_event(events, cancel, url, opened):
+    """Keep the newest browser state when a paused UI saturates its mailbox."""
+    while not cancel.is_set():
+        try:
+            events.put_nowait((cancel, url, opened))
+            return
+        except queue.Full:
+            try:
+                events.get_nowait()
+            except queue.Empty:
+                pass
 
 
 class MultiCodexApp(ctk.CTk):
@@ -58,6 +74,8 @@ class MultiCodexApp(ctk.CTk):
         self.callbacks = {}
         self.mutating = False
         self.closing = False
+        self._destroyed = False
+        self._shutdown_deadline = None
         self.login_cancel = None
         self.login_events = queue.Queue(maxsize=16)
         self.login_url = None
@@ -104,6 +122,16 @@ class MultiCodexApp(ctk.CTk):
             self._gc_id = self.after(1000, self._collect_garbage)
 
     def destroy(self):
+        if self.__dict__.get('_destroyed', False):
+            return
+        self._destroyed = True
+        self.closing = True
+        cancel = self.__dict__.get('login_cancel')
+        if cancel is not None:
+            cancel.set()
+        jobs = self.__dict__.get('jobs')
+        if jobs is not None:
+            jobs.close()
         admin = self.__dict__.get('admin')
         if admin is not None:
             admin.close()
@@ -165,7 +193,11 @@ class MultiCodexApp(ctk.CTk):
             command=lambda: self._set_account_section('profiles'))
         self.sign_in_button.grid(row=2, column=1, sticky='e', pady=(8, 0))
         self._keyboard_button(self.sign_in_button)
-        self.page_frame = ctk.CTkScrollableFrame(self.right, fg_color='transparent')
+        # CustomTkinter's scroll frame recursively redraws its scrollbar on the
+        # Windows Tk build when several page widgets are replaced in one event
+        # turn. A plain frame keeps the same page contract and lets the page's
+        # own tables provide scrolling without blocking the GUI event loop.
+        self.page_frame = ctk.CTkFrame(self.right, fg_color='transparent', corner_radius=0)
         self.page_frame.grid(row=1, column=0, sticky='nsew', padx=SPACING['xl'], pady=4)
         footer = ctk.CTkFrame(self.right, fg_color='transparent')
         footer.grid(row=2, column=0, sticky='ew', padx=SPACING['xxl'], pady=(5, 14))
@@ -526,13 +558,15 @@ class MultiCodexApp(ctk.CTk):
             self.progress.grid_remove()
 
     def _poll_results(self):
+        if self._destroyed:
+            return
         self._poll_id = None
         while True:
             try:
                 cancel, url, opened = self.login_events.get_nowait()
             except queue.Empty:
                 break
-            if cancel is self.login_cancel and not cancel.is_set():
+            if not self.closing and cancel is self.login_cancel and not cancel.is_set():
                 self.login_url = url
                 self.login_browser_opened = opened
                 self._set_status('Browser wird geöffnet. Anmeldung kann hier abgebrochen werden.' if opened is None else
@@ -563,7 +597,7 @@ class MultiCodexApp(ctk.CTk):
                         self._refresh()
                 except Exception as error:
                     self._set_status(user_error(error))
-        if self.closing and not self.jobs.pending:
+        if self.closing and (not self.jobs.pending or time.monotonic() >= self._shutdown_deadline):
             self._shutdown()
             return
         self._busy_state()
@@ -585,7 +619,7 @@ class MultiCodexApp(ctk.CTk):
 
     @staticmethod
     def _snapshot_structure(snapshot):
-        profiles = tuple((row.get('name'), row.get('linked'))
+        profiles = tuple((row.name, row.linked)
                          for row in snapshot.get('profiles', []))
         sessions = tuple(sorted(snapshot.get('sessions', {}).keys()))
         recovery = tuple(sorted(snapshot.get('recovery', {}).keys()))
@@ -672,9 +706,9 @@ class MultiCodexApp(ctk.CTk):
             return
         url = validate_login_url(url)
         events, browser_lock = self.login_events, self._browser_lock
-        events.put_nowait((cancel, url, None))
+        _publish_login_event(events, cancel, url, None)
         if not browser_lock.acquire(blocking=False):
-            events.put_nowait((cancel, url, False))
+            _publish_login_event(events, cancel, url, False)
             return False
         done, result = threading.Event(), []
         # Shell browser activation can stall. This helper holds no Tk objects
@@ -687,10 +721,7 @@ class MultiCodexApp(ctk.CTk):
             finally:
                 browser_lock.release()
             result.append(opened)
-            try:
-                events.put_nowait((cancel, url, opened))
-            except queue.Full:
-                pass
+            _publish_login_event(events, cancel, url, opened)
             done.set()
         threading.Thread(target=activate, name='multicodex-browser', daemon=True).start()
         deadline = time.monotonic() + 5
@@ -698,7 +729,7 @@ class MultiCodexApp(ctk.CTk):
             if cancel.wait(.05):
                 return False
         if not done.is_set():
-            events.put_nowait((cancel, url, False))
+            _publish_login_event(events, cancel, url, False)
             return False
         return result[0]
 
@@ -781,9 +812,10 @@ class MultiCodexApp(ctk.CTk):
     def _close(self):
         if self.closing:
             return
-        if self.jobs.pending and not messagebox.askyesno('Laufende Aktion', 'Laufende Anmeldung abbrechen und das Verwaltungsfenster nach Abschluss beenden? Ge\u00f6ffnete Desktop-Instanzen bleiben bestehen.', parent=self):
+        if self.jobs.pending and not messagebox.askyesno('Laufende Aktion', 'Laufende Aktionen abbrechen und das Verwaltungsfenster beenden? Ge\u00f6ffnete Desktop-Instanzen bleiben bestehen.', parent=self):
             return
         self.closing = True
+        self._shutdown_deadline = time.monotonic() + SHUTDOWN_GRACE_SECONDS
         self.quota.close()
         self.admin.close()
         if self.login_cancel is not None:
@@ -797,6 +829,8 @@ class MultiCodexApp(ctk.CTk):
             self._shutdown()
 
     def _shutdown(self):
+        if self._destroyed:
+            return
         self.progress.stop()
         self._progress_running = False
         for identity in (self._poll_id, self._refresh_id):
@@ -804,6 +838,7 @@ class MultiCodexApp(ctk.CTk):
                 self.after_cancel(identity)
         self._poll_id = self._refresh_id = None
         self.jobs.close()
+        self.callbacks.clear()
         self.destroy()
 
 

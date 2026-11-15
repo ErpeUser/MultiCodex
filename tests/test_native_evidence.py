@@ -68,6 +68,20 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(report['missing_dpi_percent'], [100, 125, 150, 200])
         self.assertEqual(report['capture_count'], 0)
 
+    def test_supply_chain_hashes_are_verified_before_copying_to_review_draft(self):
+        for name in ('SBOM.cdx.json', 'license-report.json'):
+            put(self.evidence / name, {'synthetic': True})
+        self.build.update(sbom_sha256=ne.file_hash(self.evidence / 'SBOM.cdx.json'),
+            license_report_sha256=ne.file_hash(self.evidence / 'license-report.json'))
+        put(self.evidence / 'build.json', self.build)
+        draft = ne.acceptance_draft(self.collect())
+        self.assertEqual(draft['sbom_sha256'], self.build['sbom_sha256'])
+        self.assertEqual(draft['license_report_sha256'], self.build['license_report_sha256'])
+        self.assertEqual(draft['license_review'], [])
+        put(self.evidence / 'license-report.json', {'changed': True})
+        with self.assertRaises(ne.EvidenceError):
+            self.collect()
+
     def test_96_bound_images_complete_machine_checks_but_not_manual_acceptance(self):
         folders = [self.capture(p)[0] for p in (100, 125, 150, 200)]
         ne.seal_build(self.evidence, self.setup, COMMIT)

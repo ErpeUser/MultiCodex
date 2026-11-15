@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from tools.release_gate import check_acceptance, ReleaseBlocked, REQUIRED_CHECKS
+from tools.release_gate import check_acceptance, check_supply_chain, ReleaseBlocked, REQUIRED_CHECKS
 
 class ReleaseGateTests(unittest.TestCase):
     def setUp(self):
@@ -47,6 +47,87 @@ class ReleaseGateTests(unittest.TestCase):
         result=self.check()
         self.assertEqual(result['source_commit'],self.commit)
         self.assertEqual(result['setup_sha256'],self.evidence['setup_sha256'])
+
+    def supply_fixture(self):
+        self.sbom = Path(self.temp.name) / 'SBOM.cdx.json'
+        self.license_report = Path(self.temp.name) / 'license-report.json'
+        self.sbom.write_text(json.dumps({'bomFormat': 'CycloneDX', 'specVersion': '1.6',
+            'metadata': {'component': {'version': self.commit}},
+            'components': [{'type': 'library', 'name': 'fixture'}]}))
+        self.license_report.write_text(json.dumps({'schema': 1, 'source_commit': self.commit,
+            'sbom_sha256': hashlib.sha256(self.sbom.read_bytes()).hexdigest(),
+            'ready': True, 'blockers': [], 'components': 1}))
+        self.evidence['sbom_sha256'] = hashlib.sha256(self.sbom.read_bytes()).hexdigest()
+        self.evidence['license_report_sha256'] = hashlib.sha256(self.license_report.read_bytes()).hexdigest()
+
+    def test_missing_supply_chain_evidence_blocks_release(self):
+        self.supply_fixture()
+        del self.evidence['sbom_sha256']
+        with self.assertRaises(ReleaseBlocked):
+            check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
+
+    def test_changed_sbom_invalidates_review(self):
+        self.supply_fixture()
+        self.sbom.write_text('{}')
+        with self.assertRaises(ReleaseBlocked):
+            check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
+
+    def test_unknown_licenses_block_even_with_matching_hashes(self):
+        self.supply_fixture()
+        report = json.loads(self.license_report.read_text())
+        report.update(ready=False, blockers=['LICENSE_REVIEW_REQUIRED:fixture'])
+        self.license_report.write_text(json.dumps(report))
+        self.evidence['license_report_sha256'] = hashlib.sha256(self.license_report.read_bytes()).hexdigest()
+        with self.assertRaises(ReleaseBlocked):
+            check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
+
+    def test_bound_supply_fixture_checks_gate_logic_only(self):
+        self.supply_fixture()
+        result = check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
+        self.assertEqual(result['sbom_sha256'], self.evidence['sbom_sha256'])
+
+    def reviewed_supply_fixture(self, blocker='RUNTIME_LICENSE_REVIEW_REQUIRED:CPython'):
+        self.supply_fixture()
+        bom = json.loads(self.sbom.read_text())
+        bom['components'].append({'type': 'file', 'name': 'licenses/runtime.txt',
+            'hashes': [{'alg': 'SHA-256', 'content': 'c' * 64}]})
+        self.sbom.write_text(json.dumps(bom))
+        self.evidence['sbom_sha256'] = hashlib.sha256(self.sbom.read_bytes()).hexdigest()
+        report = json.loads(self.license_report.read_text())
+        report.update(ready=False, blockers=[blocker], components=2,
+                      sbom_sha256=self.evidence['sbom_sha256'])
+        self.license_report.write_text(json.dumps(report))
+        self.evidence['license_report_sha256'] = hashlib.sha256(self.license_report.read_bytes()).hexdigest()
+        self.evidence['license_review'] = [{'blocker': blocker, 'reviewer': 'fixture-reviewer',
+            'license_expression': 'PSF-2.0', 'notice': 'licenses/runtime.txt', 'notice_sha256': 'c' * 64}]
+
+    def test_explicit_human_license_disposition_uses_a_real_inventoried_notice(self):
+        self.reviewed_supply_fixture()
+        result = check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
+        self.assertEqual(result['manually_reviewed_license_blockers'], 1)
+
+    def test_manual_review_cannot_waive_lock_mismatch(self):
+        self.reviewed_supply_fixture('PYTHON_LOCK_MISMATCH:fixture')
+        with self.assertRaises(ReleaseBlocked):
+            check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
+
+    def test_manual_review_cannot_reference_unshipped_or_changed_notice(self):
+        self.reviewed_supply_fixture()
+        self.evidence['license_review'][0]['notice_sha256'] = 'd' * 64
+        with self.assertRaises(ReleaseBlocked):
+            check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
+
+    def test_manual_review_must_cover_every_blocker_without_duplicates(self):
+        self.reviewed_supply_fixture()
+        self.evidence['license_review'] *= 2
+        with self.assertRaises(ReleaseBlocked):
+            check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
+
+    def test_unreviewed_license_expression_is_not_approved_by_a_truthy_flag(self):
+        self.reviewed_supply_fixture()
+        self.evidence['license_review'][0]['license_expression'] = 'UNKNOWN'
+        with self.assertRaises(ReleaseBlocked):
+            check_supply_chain(self.evidence, self.commit, self.sbom, self.license_report)
 
     def test_stale_acceptance_is_rejected(self):
         self.evidence['checked_at'] = (datetime.now(timezone.utc) - timedelta(days=15)).isoformat()

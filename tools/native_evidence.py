@@ -188,6 +188,18 @@ def collect_evidence(evidence_dir: Path, setup: Path, commit: str,
         raise EvidenceError('BUILD_BINDING_MISMATCH')
     checks = {}
     hashes = {'build.json': file_hash(evidence_dir / 'build.json')}
+    supply_chain = {}
+    if 'sbom_sha256' in build or 'license_report_sha256' in build:
+        for field, name in (('sbom_sha256', 'SBOM.cdx.json'),
+                            ('license_report_sha256', 'license-report.json')):
+            try:
+                actual = file_hash(evidence_dir / name)
+            except (EvidenceError, FileNotFoundError):
+                raise EvidenceError('SUPPLY_CHAIN_FILE_MISSING') from None
+            if build.get(field) != actual:
+                raise EvidenceError('SUPPLY_CHAIN_BINDING_MISMATCH')
+            supply_chain[field] = actual
+            hashes[name] = actual
     for name in REPORTS:
         try:
             doc = read_json(evidence_dir / name)
@@ -215,6 +227,7 @@ def collect_evidence(evidence_dir: Path, setup: Path, commit: str,
         raise EvidenceError('DUPLICATE_DPI_GROUP')
     missing = [percent for percent in DPI_PERCENT if percent not in present]
     return {'schema': 1, 'source_commit': commit, 'setup_sha256': digest,
+            **supply_chain,
             'automated_ready': not missing and all(state == 'PASS' for state in checks.values()),
             'release_ready': False, 'checks': checks, 'report_sha256': hashes,
             'captures': sorted(captures, key=lambda row: row['dpi_percent']),
@@ -241,6 +254,9 @@ def seal_build(evidence_dir: Path, setup: Path, commit: str) -> dict:
 def acceptance_draft(report: dict) -> dict:
     return {'schema': 1, 'source_commit': report['source_commit'],
             'setup_sha256': report['setup_sha256'], 'reviewer': None, 'checked_at': None,
+            'sbom_sha256': report.get('sbom_sha256'),
+            'license_report_sha256': report.get('license_report_sha256'),
+            'license_review': [],
             'checks': {name: False for name in REQUIRED_CHECKS}}
 
 

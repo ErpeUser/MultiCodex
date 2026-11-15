@@ -17,7 +17,7 @@ class DirectoryHTTP:
         self.members = {
             'owner': {'id': 'owner', 'email': 'owner@example.invalid', 'role': 'account-owner',
                       'seat_type': 'default', 'is_scim_managed': False},
-            'user': {'id': 'user', 'email': 'user@example.invalid', 'role': 'standard-user',
+            'user': {'id': 'user', 'account_id': 'user', 'email': 'user@example.invalid', 'role': 'standard-user',
                      'seat_type': 'default', 'is_scim_managed': False}}
         self.invites = {}
         self.writes = []

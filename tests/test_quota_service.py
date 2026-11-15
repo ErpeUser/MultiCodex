@@ -20,6 +20,10 @@ class ExistingSessions:
         finally:self.locked=False
     def journal(self,name):return {} if self.pending else None
     def home(self,name,sid):return Path('/fixture')/name/sid
+    def home_fingerprint(self,name,sid):return self.home(name,sid), ('fixture',)
+    def revalidate_home(self,name,sid,fingerprint):
+        if fingerprint != ('fixture',):raise AssertionError('Changed fixture home')
+        return self.home(name,sid)
     def identity(self,name,sid):return AccountIdentity('one@example.invalid','business','one')
 
 class ServiceTests(unittest.TestCase):

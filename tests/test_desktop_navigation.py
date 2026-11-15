@@ -8,6 +8,7 @@ class DesktopNavigationTests(unittest.TestCase):
     def host(self):
         events=[]
         host=SimpleNamespace(closing=False,mutating=False,snapshot_ready=False,view={},
+            _snapshot_structure=method('_snapshot_structure'),
             _render=lambda:events.append('render'),_sync_desktop_data=lambda:events.append('sync'),
             _instance_action=lambda n,a:events.append((n,a)),_recover=lambda n:events.append((n,'recover')),
             _login=lambda n,**kw:events.append((n,'login',kw)),_inspect_account=lambda n:events.append((n,'inspect')),

@@ -117,6 +117,25 @@ class AdminContractTests(unittest.TestCase):
         d=contract();c=AdminContract(d);d['servers'][0]['url']='https://attacker.example'
         self.assertEqual(c.request('get_user','w',target='u')[1], BASE+'/manage/workspaces/w/users/u')
 
+    def test_shared_reference_combinations_have_a_total_work_budget(self):
+        d=contract()
+        schemas=d['components']['schemas']
+        schemas['Level0']={'type':'object'}
+        for index in range(1,17):
+            ref={'$ref':f'#/components/schemas/Level{index-1}'}
+            schemas[f'Level{index}']={'allOf':[ref,ref]}
+        schemas['Update']={'$ref':'#/components/schemas/Level16'}
+        with self.assertRaises(AdminAPIError) as caught:
+            AdminContract(d).request('update_user','w',target='u',body={'role':'member'})
+        self.assertEqual(caught.exception.code,'UNSUPPORTED_SCHEMA')
+
+    def test_unknown_schema_dialect_is_not_silently_ignored(self):
+        d=contract();d['openapi']='3.1.0'
+        d['components']['schemas']['Update']['$schema']='https://example.invalid/dialect'
+        with self.assertRaises(AdminAPIError) as caught:
+            AdminContract(d).request('update_user','w',target='u',body={'role':'standard-user'})
+        self.assertEqual(caught.exception.code,'UNSUPPORTED_SCHEMA')
+
 class AdminAPITests(unittest.TestCase):
     def test_nullable_requests_still_enforce_other_constraints(self):
         cases = [

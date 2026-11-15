@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
+import stat
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,6 +80,34 @@ def check_profile_children(home: Path) -> None:
             raise ProfileError('Redirected profile data is not safe to manage')
 
 
+def _file_revision(path: Path):
+    info = path.lstat()
+    if is_redirect(path) or not stat.S_ISREG(info.st_mode):
+        raise ProfileError('Metadata must be a regular, unredirected file')
+    # Python/Windows fstat and lstat expose different ctime semantics. Identity,
+    # size and modification time are comparable across both; commits also hash bytes.
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
+
+
+def _checked_bytes(path: Path, limit: int):
+    """Read one bounded file handle; reject replacement or mutation during I/O."""
+    before = _file_revision(path)
+    if before[2] > limit:
+        raise ProfileError('Metadata exceeds size limit')
+    flags = os.O_RDONLY | getattr(os, 'O_BINARY', 0) | getattr(os, 'O_NOFOLLOW', 0)
+    with os.fdopen(os.open(path, flags), 'rb') as stream:
+        opened = os.fstat(stream.fileno())
+        if (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns) != before:
+            raise ProfileError('Metadata changed during read')
+        payload = stream.read(limit + 1)
+        after = os.fstat(stream.fileno())
+    if (len(payload) > limit or len(payload) != before[2] or
+            (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) != before
+            or _file_revision(path) != before):
+        raise ProfileError('Metadata changed during read')
+    return payload, before
+
+
 class ProfileStore:
     def __init__(self, root: Path):
         raw = Path(root).expanduser()
@@ -146,16 +176,29 @@ class ProfileStore:
         _atomic_json(entry / 'profile.json', {'version': 1, 'name': name, 'mode': 'linked', 'path': str(external)})
         return Profile(name, external, True)
 
-    def get(self, name: str) -> Profile:
+    def snapshot(self, name: str):
+        """Return the profile and the exact validated metadata with its revision."""
         entry = self._entry(name)
         try:
+            parent = entry.stat()
             check_profile_children(entry)
             meta = entry / 'profile.json'
-            if meta.stat().st_size > MAX_PROFILE_BYTES:
-                raise ProfileError('Profile metadata exceeds size limit')
-            data = json.loads(meta.read_text(encoding='utf-8'))
+            payload, revision = _checked_bytes(meta, MAX_PROFILE_BYTES)
+            data = json.loads(payload.decode('utf-8'))
+            profile = self._profile_from_data(name, entry, data)
+            current = self._entry(name).stat()
+            if ((current.st_dev, current.st_ino) != (parent.st_dev, parent.st_ino)
+                    or _file_revision(meta) != revision):
+                raise ProfileError('Profile changed during validation')
+            return profile, data, (parent.st_dev, parent.st_ino, *revision,
+                                   hashlib.sha256(payload).digest())
         except (OSError, ValueError) as exc:
             raise ProfileError('Profile metadata missing or corrupt') from exc
+
+    def get(self, name: str) -> Profile:
+        return self.snapshot(name)[0]
+
+    def _profile_from_data(self, name, entry, data):
         if not isinstance(data, dict):
             raise ProfileError('Profile metadata must be an object')
         if type(data.get('version')) is not int or data['version'] != 1 or data.get('name') != name:

@@ -117,7 +117,8 @@ class ProviderTests(unittest.TestCase):
         self.assertNotIn('SENTINEL_SECRET',str(out))
 
     def test_observe_verifies_identity_before_and_after_read(self):
-        client=FakeClient(limits());service=self.mod.QuotaAccountService(cli_resolver=lambda:"unused",clock=lambda:1234)
+        data=limits();data['accountId']='one'
+        client=FakeClient(data);service=self.mod.QuotaAccountService(cli_resolver=lambda:"unused",clock=lambda:1234)
         service.client=lambda home,secure=True:client
         out=service.observe('/unused',expected=AccountIdentity('one@example.invalid','business','one'))
         self.assertEqual(out['observed_at'],1234)
@@ -132,13 +133,30 @@ class ProviderTests(unittest.TestCase):
             service.observe('/unused',expected=AccountIdentity('one@example.invalid','business','one'))
         self.assertEqual(caught.exception.code,'ACCOUNT_MISMATCH')
 
-    def test_quota_response_supplies_account_id_when_local_read_does_not(self):
+    def test_quota_response_cannot_supply_unconfirmed_local_account_id(self):
         data=limits();data['accountId']='response-account'
         client=FakeClient(data,[AccountIdentity('one@example.invalid','business',None)]*2)
         service=self.mod.QuotaAccountService(cli_resolver=lambda:'unused',clock=lambda:1234)
         service.client=lambda home,secure=True:client
+        with self.assertRaises(CodexError) as caught:
+            service.observe('/unused',expected=AccountIdentity('one@example.invalid'))
+        self.assertEqual(caught.exception.code,'ACCOUNT_MISMATCH')
+
+    def test_known_local_id_requires_a_matching_quota_response_id(self):
+        client=FakeClient(limits())
+        service=self.mod.QuotaAccountService(cli_resolver=lambda:'unused')
+        service.client=lambda home,secure=True:client
+        with self.assertRaises(CodexError) as caught:
+            service.observe('/unused',expected=AccountIdentity('one@example.invalid','business','one'))
+        self.assertEqual(caught.exception.code,'ACCOUNT_MISMATCH')
+
+    def test_unknown_ids_on_both_sides_remain_explicitly_unknown(self):
+        client=FakeClient(limits(),[AccountIdentity('one@example.invalid','business',None)]*2)
+        service=self.mod.QuotaAccountService(cli_resolver=lambda:'unused')
+        service.client=lambda home,secure=True:client
         result=service.observe('/unused',expected=AccountIdentity('one@example.invalid'))
-        self.assertEqual(result['usage']['account_id'],'response-account')
+        self.assertIsNone(result['identity']['account_id'])
+        self.assertIsNone(result['usage']['account_id'])
 
     def test_quota_plan_mismatch_is_not_accepted_as_current_business_usage(self):
         data=limits();data['rateLimits']['planType']='free'

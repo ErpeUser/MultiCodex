@@ -44,14 +44,19 @@ def _source_files(root: Path, plugin_id: str) -> dict[str, bytes]:
         for statement in ast.parse(token_bytes.decode('utf-8')).body:
             if isinstance(statement, ast.Assign):
                 for target in statement.targets:
-                    if isinstance(target, ast.Name) and target.id in {'THEMES', 'NAV_WIDTH', 'RADIUS'}:
-                        values[target.id] = ast.literal_eval(statement.value)
+                    if isinstance(target, ast.Name) and target.id in {'THEMES', 'NAV_WIDTH', 'RADIUS', 'RADIUS_SCALE'}:
+                        node = statement.value
+                        if (target.id == 'RADIUS' and isinstance(node, ast.Subscript)
+                                and isinstance(node.value, ast.Name) and node.value.id == 'RADIUS_SCALE'):
+                            values[target.id] = values['RADIUS_SCALE'][ast.literal_eval(node.slice)]
+                        else:
+                            values[target.id] = ast.literal_eval(node)
         themes = values['THEMES']
         names = {'canvas', 'rail', 'panel', 'text', 'muted', 'accent', 'accent_text', 'border', 'selected'}
         if set(themes) != {'dark', 'light'}:
             raise PackageError('INVALID_TOKENS')
         for palette in themes.values():
-            if set(palette) != names or any(not isinstance(v, str) or re.fullmatch(r'#[0-9A-Fa-f]{6}', v) is None for v in palette.values()):
+            if not names <= set(palette) or any(not isinstance(v, str) or re.fullmatch(r'#[0-9A-Fa-f]{6}', v) is None for v in palette.values()):
                 raise PackageError('INVALID_TOKENS')
         if (type(values['NAV_WIDTH']) is not int or not 180 <= values['NAV_WIDTH'] <= 300 or
                 type(values['RADIUS']) is not int or not 0 <= values['RADIUS'] <= 32):

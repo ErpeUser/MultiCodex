@@ -29,3 +29,7 @@ The existing profile/environment and MSIX discovery strategy informed the recove
 - Inno Setup is an external build compiler, not redistributed by MultiCodex; record the actual compiler version and review its terms before release.
 
 Python and PyInstaller notices, installed runtime-distribution metadata, upstream package license files and the repository's `licenses/` directory are retained in the bundle. This repository contains no copied system font files. The verified Python x64 build lock and npm lock cover transitive dependencies; the final distribution-license audit, own app icon and native release acceptance remain prerequisites for publication.
+
+Every new Windows bundle includes `SBOM.cdx.json` and `license-report.json`.
+Unknown or missing license attribution remains an explicit publication blocker.
+See [the inventory and exact-build review contract](docs/supply-chain.md).

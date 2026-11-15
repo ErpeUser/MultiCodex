@@ -98,6 +98,19 @@ class WidgetTests(unittest.TestCase):
         self.panel.set_model(model);self.root.update()
         self.assertTrue(self.panel.table.bbox(target),'Selected account was outside the visible table')
 
+    def test_selection_stays_visible_after_layout_shrinks_during_refresh(self):
+        from copy import deepcopy
+        model=fixture_model();original=model['rows'][0];model['rows']=[]
+        for i in range(30):
+            row=deepcopy(original);row['account']['account_key']=f'{i:064x}'
+            row['account']['email']=f'user{i:02d}@example.invalid';model['rows'].append(row)
+        self.root.geometry('900x850');self.root.update()
+        self.panel.set_model(model);self.root.update()
+        target=f'{29:064x}';self.panel.table.selection_set(target);self.panel.select_row()
+        self.panel.set_model(model)
+        self.root.geometry('900x640');self.root.update()
+        self.assertTrue(self.panel.table.bbox(target),'Layout change hid the selected row')
+
     def test_history_pagination_is_visible_in_small_window(self):
         self.panel.show_history('a'*64,[],0)
         window=self.panel.history_window;window.geometry('680x360');self.root.update()

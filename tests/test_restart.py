@@ -193,7 +193,8 @@ class RestartTests(unittest.TestCase):
             ('same', 'account-a', 'old@example.invalid', 'account-a', True),
             ('email-case', 'account-a', 'OLD@EXAMPLE.INVALID', 'account-a', True),
             ('no-ids', None, 'old@example.invalid', None, True),
-            ('learned-id', None, 'old@example.invalid', 'account-a', True),
+            # Learning an ID does not prove that the earlier ID-less identity matched.
+            ('learned-id', None, 'old@example.invalid', 'account-a', False),
             ('changed-id', 'account-a', 'old@example.invalid', 'account-b', False),
             ('missing-id', 'account-a', 'old@example.invalid', None, False),
             ('changed-email', 'account-a', 'other@example.invalid', 'account-a', False),

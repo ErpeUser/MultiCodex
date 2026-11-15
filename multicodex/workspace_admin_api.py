@@ -186,10 +186,20 @@ class AdminContract:
             raise AdminAPIError('UNSUPPORTED_SCHEMA') from None
         return self._resolve(node, depth + 1)
 
-    def _validate(self, value, schema, depth=0, *, direction='request'):
-        if depth > 32:
+    def _validate(self, value, schema, depth=0, *, direction='request', budget=None):
+        # Depth alone does not bound a small DAG of shared union references:
+        # each level can multiply the work without increasing document size.
+        if budget is None:
+            budget = [32768]
+        budget[0] -= 1
+        if depth > 32 or budget[0] < 0:
             raise AdminAPIError('UNSUPPORTED_SCHEMA')
         schema = self._resolve(schema)
+        dialect = schema.get('$schema', self._doc.get('jsonSchemaDialect'))
+        if dialect is not None and (not str(self._doc['openapi']).startswith('3.1.') or
+                dialect not in {'https://json-schema.org/draft/2020-12/schema',
+                                'https://spec.openapis.org/oas/3.1/dialect/base'}):
+            raise AdminAPIError('UNSUPPORTED_SCHEMA')
         if (direction == 'request' and schema.get('readOnly') is True or
             direction == 'response' and schema.get('writeOnly') is True):
             raise AdminAPIError()
@@ -204,7 +214,7 @@ class AdminContract:
             good = 0
             for sub in variants:
                 try:
-                    self._validate(value, sub, depth + 1, direction=direction)
+                    self._validate(value, sub, depth + 1, direction=direction, budget=budget)
                     good += 1
                 except AdminAPIError as exc:
                     if exc.code != 'INVALID_REQUEST':
@@ -243,20 +253,20 @@ class AdminContract:
                 if not isinstance(key, str):
                     raise AdminAPIError()
                 if key in props:
-                    self._validate(item, props[key], depth + 1, direction=direction)
+                    self._validate(item, props[key], depth + 1, direction=direction, budget=budget)
                 else:
                     additional = schema.get('additionalProperties', True)
                     if additional is False:
                         raise AdminAPIError()
                     if isinstance(additional, dict):
-                        self._validate(item, additional, depth + 1, direction=direction)
+                        self._validate(item, additional, depth + 1, direction=direction, budget=budget)
         elif type(value) is list:
             if len(value) < schema.get('minItems', 0) or len(value) > schema.get('maxItems', 10000):
                 raise AdminAPIError()
             if schema.get('uniqueItems') and len({_json(x) for x in value}) != len(value):
                 raise AdminAPIError()
             for item in value:
-                self._validate(item, schema.get('items', {}), depth + 1, direction=direction)
+                self._validate(item, schema.get('items', {}), depth + 1, direction=direction, budget=budget)
         elif type(value) is str:
             if len(value) < schema.get('minLength', 0) or len(value) > schema.get('maxLength', 65536) or re.search(r'[\x00-\x1f\x7f]', value):
                 raise AdminAPIError()

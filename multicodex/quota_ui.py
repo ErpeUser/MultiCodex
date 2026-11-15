@@ -146,13 +146,15 @@ class QuotaPanel(tk.Frame):
         self.bind('<Configure>',self._resize)
         self._compact = None
         self._metric_columns = None
+        self._selection_scroll_id = None
+        self.table.bind('<Configure>', lambda event: self._defer_selection_scroll())
 
     def _resize(self,event):
         if event.widget is self:
             width=max(160,event.width-10)
             self.account_label.configure(wraplength=width);self.provenance.configure(wraplength=width)
             self.message.configure(wraplength=max(90,width-250))
-            compact = width < BREAKPOINTS['stack']
+            compact = width < BREAKPOINTS['compact']
             if compact != self._compact:
                 self._compact = compact
                 self.primary.grid_forget();self.secondary.grid_forget()
@@ -162,13 +164,17 @@ class QuotaPanel(tk.Frame):
                 else:
                     self.primary.grid(row=2,column=0,sticky='nsew',padx=(0,5))
                     self.secondary.grid(row=2,column=1,sticky='nsew',padx=(5,0))
-            columns = 1 if width < BREAKPOINTS['compact'] else 2 if width < BREAKPOINTS['wide'] else 3
+            # These short metric cells fit in three columns from 620px.
+            # Wrapping them at the shell's 900px breakpoint starves the table
+            # of all height in the supported 900x640 window.
+            columns = 1 if width < 420 else 2 if width < BREAKPOINTS['compact'] else 3
             if columns != self._metric_columns:
                 self._metric_columns = columns
                 for cell in self.metric_cells:cell.grid_forget()
                 for index,cell in enumerate(self.metric_cells):
                     cell.grid(row=index//columns,column=index%columns,sticky='ew',padx=(0,10 if index%columns<columns-1 else 0),pady=(0,6))
                 for index in range(3):self.metrics.grid_columnconfigure(index,weight=1 if index<columns else 0,uniform='metrics')
+            self._defer_selection_scroll()
 
     def _sort(self,column):
         self.sort_by='usage' if column in ('five','week') else 'account'
@@ -196,6 +202,19 @@ class QuotaPanel(tk.Frame):
         elif rows:self.table.selection_set(rows[0]['account']['account_key'])
         self.select_row()
         if self.selected_key:self.table.see(self.selected_key)
+        self._defer_selection_scroll()
+
+    def _defer_selection_scroll(self):
+        # Geometry can shrink the table after see() has used its old height.
+        # Coalesce updates and apply only after Tk finishes the current layout.
+        if self._selection_scroll_id is not None:
+            self.after_cancel(self._selection_scroll_id)
+        self._selection_scroll_id = self.after_idle(self._reveal_selection)
+
+    def _reveal_selection(self):
+        self._selection_scroll_id = None
+        if self.selected_key and self.table.exists(self.selected_key):
+            self.table.see(self.selected_key)
 
     def _set_refresh_enabled(self,enabled):
         self.refresh_button.configure(state='normal' if enabled else 'disabled',
@@ -259,6 +278,9 @@ class QuotaPanel(tk.Frame):
         if offset==0:prev_button.configure(state='disabled')
 
     def destroy(self):
+        if self._selection_scroll_id is not None:
+            self.after_cancel(self._selection_scroll_id)
+            self._selection_scroll_id = None
         if self.history_window is not None and self.history_window.winfo_exists():self.history_window.destroy()
         super().destroy()
 

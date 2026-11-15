@@ -404,7 +404,7 @@ class QuotaStore:
                 'access_changed_at': None, 'created_at': now, 'context_revision': 0,
                 'last_verified_at': None}
             if row and any(record.get(field) != value for field, value in
-                (('session_id', session_id), ('plan_type', plan_type), ('seat_type', seat_type))):
+                (('session_id', session_id), ('email', email), ('plan_type', plan_type), ('seat_type', seat_type))):
                 record['context_revision'] = record.get('context_revision', 0) + 1
             record.update(profile_id=profile_id, session_id=session_id, email=email,
                           account_id=account_id, workspace_id=workspace_id, plan_type=plan_type,

@@ -235,9 +235,9 @@ class WorkspaceOperations:
             account=self.quota.account(account_key)
             member=preflight['target']
             if (not member['email'] or account['email'].casefold()!=member['email'].casefold() or
-                account['workspace_id'] not in (None,workspace) or
-                (member.get('account_id') is not None and account.get('account_id') is not None and
-                 member['account_id'] != account['account_id'])):
+                account['workspace_id'] != workspace or
+                member.get('account_id') is None or account.get('account_id') is None or
+                member['account_id'] != account['account_id']):
                 raise OperationError('ACCOUNT_MISMATCH')
             return self.quota.prepare_removal(account_key)['snapshot_id']
         except QuotaError:

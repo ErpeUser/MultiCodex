@@ -16,7 +16,7 @@ from test_workspace_admin_api import contract
 class Provider:
     def __init__(self):
         self.users = {'owner-a': {'id':'owner-a','email':'owner@example.com','role':'account-owner','seat_type':'default','is_scim_managed':False},
-                      'user-a': {'id':'user-a','email':'a@example.com','role':'standard-user','seat_type':'default','is_scim_managed':False}}
+                      'user-a': {'id':'user-a','account_id':'account-a','email':'a@example.com','role':'standard-user','seat_type':'default','is_scim_managed':False}}
         self.invites = {}
         self.writes = []
         self.disconnect_after_write = False
@@ -50,7 +50,8 @@ class OperationTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
         self.now=1000;self.provider=Provider();self.api=AdminAPI(AdminContract(contract()),self.provider)
         self.quota=QuotaStore(self.root/'quota')
-        self.account=self.quota.register(profile_id='Test',session_id='default',email='a@example.com',workspace_id='w',now=900)
+        self.account=self.quota.register(profile_id='Test',session_id='default',email='a@example.com',
+            account_id='account-a',workspace_id='w',now=900)
         self.snap=self.quota.capture(self.account,{'source':'official-app-server','windows':[
             {'label':'primary','used_percent':95,'minutes':300,'reset_at':2000},
             {'label':'secondary','used_percent':40,'minutes':10080,'reset_at':9000}]},observed_at=950)
@@ -73,14 +74,16 @@ class OperationTests(unittest.TestCase):
         op=self.prepare()
         with self.assertRaises(OperationError):self.ops.approve(op['operation_id'],'0'*64)
     def test_removal_requires_quota_evidence_before_network_mutation(self):
-        blank=self.quota.register(profile_id='Blank',session_id='default',email='a@example.com',workspace_id='w',now=900)
+        blank=self.quota.register(profile_id='Blank',session_id='default',email='a@example.com',
+            account_id='account-a',workspace_id='w',now=900)
         with self.assertRaises(OperationError) as error:self.prepare(account_key=blank)
         self.assertEqual(error.exception.code,'SNAPSHOT_REQUIRED');self.assertEqual(self.provider.writes,[])
 
     def test_role_change_requires_quota_evidence_before_network_mutation(self):
-        self.provider.users['owner-b']={'id':'owner-b','email':'a@example.com','role':'account-owner',
+        self.provider.users['owner-b']={'id':'owner-b','account_id':'account-a','email':'a@example.com','role':'account-owner',
                                        'seat_type':'default','is_scim_managed':False}
-        blank=self.quota.register(profile_id='BlankRole',session_id='default',email='a@example.com',workspace_id='w',now=900)
+        blank=self.quota.register(profile_id='BlankRole',session_id='default',email='a@example.com',
+            account_id='account-a',workspace_id='w',now=900)
         with self.assertRaises(OperationError) as error:
             self.prepare(action='update_user',target='owner-b',body={'role':'standard-user'},account_key=blank)
         self.assertEqual(error.exception.code,'SNAPSHOT_REQUIRED')
@@ -216,11 +219,15 @@ class OperationTests(unittest.TestCase):
         result=self.ops.execute(op['operation_id'],'key')
         self.assertNotEqual(result['state'],'AWAITING_ACCEPTANCE')
         self.assertEqual(self.provider.writes,[])
-    def test_unknown_quota_scope_is_not_marked_removed_globally(self):
-        account=self.quota.register(profile_id='Unknown',session_id='default',email='a@example.com',now=900)
+    def test_unknown_quota_scope_blocks_workspace_write_and_keeps_history(self):
+        account=self.quota.register(profile_id='Unknown',session_id='default',email='a@example.com',
+            account_id='account-a',now=900)
         self.quota.capture(account,{'source':'official-app-server','windows':[]},observed_at=950)
-        op=self.prepare(account_key=account);self.ops.approve(op['operation_id'],op['digest'])
-        self.assertEqual(self.ops.execute(op['operation_id'],'key')['state'],'VERIFIED')
+        with self.assertRaises(OperationError) as caught:
+            self.prepare(account_key=account)
+        self.assertEqual(caught.exception.code,'ACCOUNT_MISMATCH')
+        self.assertEqual(self.provider.writes,[])
+        self.assertIsNotNone(self.quota.latest(account))
         self.assertEqual(self.quota.account(account)['membership_state'],'WORKSPACE_ACCESS_UNKNOWN')
     @contextmanager
     def paused_resend(self):

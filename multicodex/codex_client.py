@@ -53,7 +53,9 @@ class AccountIdentity:
             plan = None
         # Providers have emitted both keys over time; a null accountId must
         # not hide a valid legacy id fallback.
-        ident = account.get('accountId') or account.get('id')
+        ident = account.get('accountId')
+        if ident is None:
+            ident = account.get('id')
         if not isinstance(ident, str) or not ident or len(ident) > 256 or re.search(r'[\x00-\x1f]', ident):
             ident = None
         return cls(email, plan, ident)

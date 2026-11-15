@@ -12,8 +12,8 @@ try {
     if ($initialStatus.Count -gt 0) { throw 'Build requires a clean source tree' }
     if (![Environment]::Is64BitOperatingSystem -or $env:OS -ne 'Windows_NT') { throw 'Windows x64 is required' }
     New-Item -ItemType Directory -Force evidence,output,build/downloads | Out-Null
-    if ((Get-ChildItem evidence -Force -ErrorAction SilentlyContinue).Count -gt 0 -or
-        (Get-ChildItem output -Force -ErrorAction SilentlyContinue).Count -gt 0) {
+    if (@(Get-ChildItem evidence -Force -ErrorAction SilentlyContinue).Count -gt 0 -or
+        @(Get-ChildItem output -Force -ErrorAction SilentlyContinue).Count -gt 0) {
         throw 'Evidence and output directories must be empty before a reproducible build'
     }
     if (!$InnoCompiler) {

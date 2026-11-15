@@ -583,13 +583,26 @@ class MultiCodexApp(ctk.CTk):
             self._refresh()
             self._refresh_id = self.after(3000, self._periodic_refresh)
 
+    @staticmethod
+    def _snapshot_structure(snapshot):
+        profiles = tuple((row.get('name'), row.get('linked'))
+                         for row in snapshot.get('profiles', []))
+        sessions = tuple(sorted(snapshot.get('sessions', {}).keys()))
+        recovery = tuple(sorted(snapshot.get('recovery', {}).keys()))
+        issues = tuple(sorted((row.get('profile'), row.get('code'))
+                              for row in snapshot.get('issues', [])))
+        return profiles, sessions, recovery, issues
+
     def _snapshot_loaded(self, snapshot):
-        changed = not self.snapshot_ready or snapshot != self.view
+        structure_changed = (not self.snapshot_ready or
+                             self._snapshot_structure(snapshot) != self._snapshot_structure(self.view))
         self.snapshot_ready = True
         self.view = snapshot
-        if changed:
+        if structure_changed:
             self._render()
         else:
+            # Keep the existing widget tree, selection, scroll and focus while
+            # refreshing process/metric values in place.
             self._sync_desktop_data()
 
     def _pool_loaded(self, rows):

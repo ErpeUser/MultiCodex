@@ -36,7 +36,7 @@ Das Zielrepository muss **privat bleiben: [`ErpeUser/MultiCodex`](https://github
 ## Bedienung
 
 1. Unter **Instanzen** ein neues verwaltetes Profil erstellen oder ein bereits getrenntes Codex-Profil verknuepfen.
-2. Oben rechts **Anmelden** oder links **Konten** waehlen, dann bei **Codex 1** **Mit OpenAI anmelden**. Die Anmeldung erfolgt im offiziellen Browser auf `auth.openai.com`; MultiCodex hat kein Passwortfeld.
+2. Oben rechts **Anmelden** oder links **Konten** und dann **Anmeldungen** waehlen. In **Gespeicherte Anmeldungen** die Zeile des gewuenschten verwalteten Profils markieren, **Anmeldung hinzufügen** klicken und die Neustart-Rueckfrage fuer dieses Profil bestaetigen. Die Anmeldung erfolgt im offiziellen Browser auf `auth.openai.com`; MultiCodex hat kein Passwortfeld.
 3. Weitere Anmeldungen hinzufuegen; mit **Konto wechseln** die Zuordnung genau dieses Profils wechseln. Die vorherige Anmeldung bleibt auswaehlbar.
 4. **Erneut anmelden** erwartet dieselbe bekannte Identitaet. Unter **Diagnose** koennen unterbrochene Umschaltungen ausdruecklich wiederhergestellt werden.
 

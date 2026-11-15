@@ -18,7 +18,8 @@ Die installierte Anwendung benoetigt keine separate Python- oder Node-Installati
 1. Die Setup-EXE aus `output/` starten.
 2. Zielordner ist standardmaessig `%LOCALAPPDATA%\Programs\MultiCodex`; Administratorrechte sind nicht erforderlich.
 3. MultiCodex ueber das Startmenue oder die optionale Desktopverknuepfung starten.
-4. Oben rechts **Anmelden** oder links **Konten** waehlen. Bei **Codex 1** **Mit OpenAI anmelden** klicken. Der offizielle Browser oeffnet `auth.openai.com`; bei einem Browserfehler kann **Browser erneut oeffnen** verwendet oder die Aktion abgebrochen werden.
+4. Oben rechts **Anmelden** oder links **Konten** und dann **Anmeldungen** waehlen. Ist noch kein verwaltetes Profil vorhanden, ueber **Neue Instanz** ein Profil mit einem selbst gewaehlten Namen erstellen.
+5. In **Gespeicherte Anmeldungen** die Zeile dieses Profils markieren, **Anmeldung hinzufügen** klicken und die Neustart-Rueckfrage fuer dieses Profil bestaetigen. Der offizielle Browser oeffnet `auth.openai.com`; bei einem Browserfehler kann **Browser erneut öffnen** verwendet oder die Aktion abgebrochen werden.
 
 Programm und Daten liegen getrennt: Profile unter `%LOCALAPPDATA%\MultiCodex\profiles`, Einstellungen unter `%LOCALAPPDATA%\MultiCodex\settings.json`. Verknuepfte Originalprofile bleiben an ihrem Ort. Neue verwaltete Logins verlangen Keyring-Speicherung; siehe [Sicherheit](security.md).
 

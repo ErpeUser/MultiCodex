@@ -9,8 +9,11 @@ import hashlib
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+MAX_ACCEPTANCE_AGE = timedelta(days=14)
+MAX_FUTURE_SKEW = timedelta(minutes=5)
 
 REQUIRED_CHECKS = (
     'windows_11_x64', 'three_isolated_instances', 'switch_target_only',
@@ -43,6 +46,12 @@ def check_acceptance(evidence: dict, commit: str, setup: Path) -> dict:
         date = datetime.fromisoformat(evidence['checked_at'])
         if date.tzinfo is None:
             raise ValueError('Time zone required')
+        checked_at = date.astimezone(timezone.utc)
+        now = datetime.now(timezone.utc)
+        if checked_at > now + MAX_FUTURE_SKEW:
+            raise ValueError('Acceptance timestamp is in the future')
+        if now - checked_at > MAX_ACCEPTANCE_AGE:
+            raise ValueError('Acceptance timestamp is too old')
     except (KeyError, TypeError, ValueError) as exc:
         raise ReleaseBlocked('A valid native-test timestamp is required') from exc
     checks = evidence.get('checks')

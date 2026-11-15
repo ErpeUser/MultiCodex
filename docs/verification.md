@@ -1,12 +1,14 @@
 # Ausgefuehrte Pruefungen und offene Abnahme
 
-Stand: 13. November 2026, lokaler Windows-Entwicklungsbuild `0.2.1-dev`.
+**Aktueller Status (15. November 2026):** Die folgenden Windows-/Installerwerte sind historische lokale Nachweise und werden nicht automatisch dem aktuellen `main`-Commit zugerechnet. Der aktuelle reproduzierbare Build pinnt Node **22.23.5** und prüft einen sauberen Arbeitsbaum; ein neuer Windows-2025-Lauf und eine native Windows-11-Abnahme wurden in dieser Sitzung nicht ausgeführt. Nur ein Bericht mit aktuellem Source-Commit, Setup-SHA und allen nativen Kriterien darf als Freigabe gelten.
+
+Stand des historischen Nachweises: 13. November 2026, lokaler Windows-Entwicklungsbuild `0.2.1-dev`.
 
 ## Aktuell auf Windows ausgefuehrt
 
 | Pruefung | Ergebnis | Aussagegrenze |
 |---|---|---|
-| Umgebung | Windows 11 x64 Build 26200; CPython 3.12.10; Node 22.19.0; Inno Setup 6.7.3 | Keine Windows-10-Freigabe |
+| Umgebung | Historischer Windows-11-x64-Build 26200; CPython 3.12.10; Node 22.19.0; Inno Setup 6.7.3; aktueller Bundle-Pin: Node 22.23.5 | Keine Windows-10-Freigabe |
 | Python-Suite | 117 Tests: 113 bestanden, 4 uebersprungen | Nicht-Windows-Test und 3 Symlink-Tests auf diesem Host uebersprungen |
 | Node-Suite | 9 Tests: 8 bestanden, 1 uebersprungen | Symlink-Test mangels Hostberechtigung uebersprungen |
 | Python-/Node-Syntax | Erfolgreich | Keine Aussage ueber echte Konten |

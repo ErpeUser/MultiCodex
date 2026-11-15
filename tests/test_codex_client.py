@@ -94,6 +94,17 @@ class CodexClientTests(unittest.TestCase):
             with self.subTest(result=result), self.assertRaises(CodexError):
                 AccountIdentity.from_response(result)
 
+    def test_account_id_fallback_and_symmetric_matching(self):
+        identity = AccountIdentity.from_response({'account': {
+            'type': 'chatgpt', 'email': 'test@example.invalid',
+            'accountId': None, 'id': 'fallback-id'}})
+        self.assertEqual(identity.account_id, 'fallback-id')
+        missing = AccountIdentity('test@example.invalid', account_id=None)
+        known = AccountIdentity('test@example.invalid', account_id='known-id')
+        self.assertFalse(missing.same_account(known))
+        self.assertFalse(known.same_account(missing))
+        self.assertTrue(missing.same_account(AccountIdentity('test@example.invalid')))
+
     def test_cancelled_wait_never_reports_success(self):
         with self.client() as client:
             event=threading.Event();event.set()

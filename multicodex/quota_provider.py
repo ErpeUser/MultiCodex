@@ -135,7 +135,8 @@ class QuotaAccountService(CodexAccountService):
         if cancel is not None and cancel.is_set():
             raise CodexError('CANCELLED')
         response_id = usage.get('account_id')
-        if response_id is not None and after.account_id is not None and response_id != after.account_id:
+        if ((response_id is None) != (after.account_id is None) or
+                (response_id is not None and response_id != after.account_id)):
             raise CodexError('ACCOUNT_MISMATCH')
         response_plan = usage.get('plan_type')
         if response_plan is not None and after.plan is not None and response_plan != after.plan:

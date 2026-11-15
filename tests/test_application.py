@@ -4,6 +4,7 @@ from pathlib import Path
 from multicodex.profiles import ProfileStore
 from multicodex.application import ApplicationServices, user_error
 from multicodex.codex_client import CodexError
+from multicodex.controller import OperationError
 from helpers.sessions import AuthFixture
 
 class SnapshotRuntime:
@@ -57,6 +58,14 @@ class ApplicationTests(unittest.TestCase):
 
     def test_cancelled_login_has_distinct_user_visible_outcome(self):
         self.assertNotEqual(user_error(CodexError('CANCELLED')), user_error(CodexError('AUTH_FAILED')))
+
+    def test_operation_error_keeps_details_redacted_and_requests_inspection(self):
+        rendered = user_error(OperationError('access_token=SECRET https://auth.example.invalid/private'))
+        self.assertNotIn('SECRET', rendered)
+        self.assertNotIn('access_token', rendered)
+        self.assertNotIn('https://', rendered)
+        self.assertIn('Zuordnung prüfen', rendered)
+        self.assertIn('Wiederherstellung', rendered)
 
 if __name__ == '__main__':
     unittest.main()

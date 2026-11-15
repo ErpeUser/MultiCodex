@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 from multicodex.controller import SessionController, OperationError
+from multicodex.application import user_error
 from multicodex.profiles import ProfileStore
 from multicodex.sessions import SessionStore
 from multicodex.codex_client import AccountIdentity, CodexError
@@ -59,6 +60,31 @@ class RestartTests(unittest.TestCase):
         self.assertEqual(self.store.get('Work').session_id,'default')
         self.assertIn(('launch','Work','default'),self.instances.actions)
         self.assertIn('Research',self.instances.live)
+
+    def test_failed_rollback_does_not_report_restored_assignment(self):
+        sid, home = self.session()
+        old_home = self.store.get('Work').codex_home
+        other_metadata = {name: (self.store.root/name/'profile.json').read_bytes()
+                          for name in ('Research', 'Private')}
+        def fail_after_start(name):
+            self.instances.actions.append(('launch', name, self.store.get(name).session_id))
+            self.instances.live.add(name)
+            self.instances.stop_error = True
+            raise RuntimeError('fixture launch verification failure')
+        with patch.object(self.instances, 'launch', side_effect=fail_after_start):
+            with self.assertRaises(OperationError) as caught:
+                self.ctl.switch('Work', sid, confirmed=True)
+        self.assertEqual(self.store.get('Work').session_id, sid)
+        self.assertEqual(self.sessions.journal('Work')['phase'], 'bound')
+        self.assertTrue(old_home.is_dir() and home.is_dir())
+        self.assertEqual(self.instances.live, {'Work', 'Research', 'Private'})
+        for name, metadata in other_metadata.items():
+            self.assertEqual((self.store.root/name/'profile.json').read_bytes(), metadata)
+        rendered = user_error(caught.exception)
+        self.assertNotIn('blieb erhalten', rendered)
+        self.assertNotIn('wurde zurückgesetzt', rendered)
+        self.assertIn('Zuordnung prüfen', rendered)
+        self.assertIn('Wiederherstellung', rendered)
 
     def test_idle_profile_is_started_after_switch(self):
         sid,_=self.session();self.instances.live.remove('Work')

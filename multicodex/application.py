@@ -34,7 +34,7 @@ def user_error(error: BaseException) -> str:
     if isinstance(error, ProcessSafetyError):
         return 'Der ausgew\u00e4hlte Prozess konnte nicht sicher gestartet oder beendet werden. Fenster manuell schlie\u00dfen und erneut pr\u00fcfen.'
     if isinstance(error, OperationError):
-        return 'Aktion nicht abgeschlossen. Zuordnung blieb erhalten oder wurde zur\u00fcckgesetzt. Bei markiertem Profil Wiederherstellung ausf\u00fchren.'
+        return 'Aktion nicht abgeschlossen. Aktuelle Zuordnung pr\u00fcfen; bei markiertem Profil Wiederherstellung ausf\u00fchren.'
     return 'Aktion fehlgeschlagen. Installation und lokale Dateiberechtigungen pr\u00fcfen. Fehlerdetails wurden aus Sicherheitsgr\u00fcnden nicht angezeigt.'
 
 

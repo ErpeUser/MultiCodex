@@ -12,7 +12,8 @@ import uuid
 from pathlib import Path
 from .codex_client import AccountIdentity
 from .locks import FileLock
-from .profiles import ProfileStore, ProfileError, _atomic_json, is_redirect
+from .profiles import (MAX_PROFILE_BYTES, MAX_PROFILE_SESSIONS, ProfileStore, ProfileError,
+                       _atomic_bytes, _atomic_json, is_redirect)
 
 
 class MissingIdentityError(ProfileError):
@@ -44,9 +45,14 @@ class SessionStore:
 
     def _save(self, name, data):
         entry = self._entry(name)
+        if len(data.get('sessions', {})) > MAX_PROFILE_SESSIONS:
+            raise ProfileError('Session catalogue exceeds size limit')
+        payload = json.dumps(data, indent=2).encode('utf-8')
+        if len(payload) > MAX_PROFILE_BYTES:
+            raise ProfileError('Profile metadata exceeds size limit')
         previous = json.loads((entry/'profile.json').read_text(encoding='utf-8'))
         _atomic_json(entry/'profile.json.previous', previous)
-        _atomic_json(entry/'profile.json', data)
+        _atomic_bytes(entry/'profile.json', payload)
 
     def home(self, name, session_id):
         if not valid_session_id(session_id):

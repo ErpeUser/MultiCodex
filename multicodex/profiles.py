@@ -13,6 +13,10 @@ class ProfileError(ValueError):
     pass
 
 
+MAX_PROFILE_BYTES = 1024 * 1024
+MAX_PROFILE_SESSIONS = 1000
+
+
 @dataclass(frozen=True)
 class Profile:
     name: str
@@ -42,10 +46,14 @@ def validate_name(name: str) -> str:
 
 
 def _atomic_json(path: Path, obj: dict) -> None:
+    _atomic_bytes(path, json.dumps(obj, indent=2).encode('utf-8'))
+
+
+def _atomic_bytes(path: Path, data: bytes) -> None:
     fd, tmp = tempfile.mkstemp(prefix='.profile-', suffix='.tmp', dir=path.parent)
     try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as fh:
-            json.dump(obj, fh, indent=2)
+        with os.fdopen(fd, 'wb') as fh:
+            fh.write(data)
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
@@ -143,7 +151,7 @@ class ProfileStore:
         try:
             check_profile_children(entry)
             meta = entry / 'profile.json'
-            if meta.stat().st_size > 1024 * 1024:
+            if meta.stat().st_size > MAX_PROFILE_BYTES:
                 raise ProfileError('Profile metadata exceeds size limit')
             data = json.loads(meta.read_text(encoding='utf-8'))
         except (OSError, ValueError) as exc:
@@ -158,7 +166,7 @@ class ProfileStore:
         if data.get('mode') == 'managed':
             sid = data.get('active_session', 'default')
             sessions = data.get('sessions', {})
-            if not isinstance(sessions, dict) or len(sessions) > 1000:
+            if not isinstance(sessions, dict) or len(sessions) > MAX_PROFILE_SESSIONS:
                 raise ProfileError('Invalid session catalogue')
             if sid != 'default' and (not isinstance(sid, str) or not re.fullmatch('[0-9a-f]{32}', sid) or sid not in sessions):
                 raise ProfileError('Invalid active session')

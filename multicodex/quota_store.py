@@ -12,6 +12,8 @@ import json
 import math
 import os
 from pathlib import Path
+
+from .locks import BusyError, FileLock
 import re
 import shutil
 import sqlite3
@@ -157,6 +159,7 @@ class QuotaStore:
     def __init__(self, root: str | Path):
         self.root = Path(root).absolute()
         self.path = self.root / 'quota.sqlite3'
+        self.lock_path = self.root / '.locks' / 'quota-store.lock'
         try:
             _safe_path(self.root)
             self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -205,30 +208,47 @@ class QuotaStore:
             raise QuotaError('STORAGE')
 
     @contextmanager
+    def _storage_guard(self):
+        """Serialize SQLite replacement and backup operations across processes."""
+        deadline = time.monotonic() + 5.0
+        delay = 0.01
+        while True:
+            try:
+                with FileLock(self.lock_path):
+                    yield
+                    return
+            except BusyError as exc:
+                if time.monotonic() >= deadline:
+                    raise QuotaError('STORAGE') from exc
+                time.sleep(delay)
+                delay = min(delay * 2, 0.1)
+
+    @contextmanager
     def _db(self, *, write=False):
         db = None
-        try:
-            self._check_paths()
-            if not self.path.is_file():
-                raise QuotaError('STORAGE')
-            db = sqlite3.connect(self.path, timeout=5, isolation_level=None)
-            db.row_factory = sqlite3.Row
-            db.execute('PRAGMA foreign_keys = ON')
-            db.execute('PRAGMA trusted_schema = OFF')
-            db.execute('BEGIN IMMEDIATE' if write else 'BEGIN')
-            yield db
-            db.commit()
-        except (sqlite3.Error, OSError, json.JSONDecodeError, UnicodeError) as exc:
-            if db is not None:
-                db.rollback()
-            raise QuotaError('STORAGE') from exc
-        except BaseException:
-            if db is not None:
-                db.rollback()
-            raise
-        finally:
-            if db is not None:
-                db.close()
+        with self._storage_guard():
+            try:
+                self._check_paths()
+                if not self.path.is_file():
+                    raise QuotaError('STORAGE')
+                db = sqlite3.connect(self.path, timeout=5, isolation_level=None)
+                db.row_factory = sqlite3.Row
+                db.execute('PRAGMA foreign_keys = ON')
+                db.execute('PRAGMA trusted_schema = OFF')
+                db.execute('BEGIN IMMEDIATE' if write else 'BEGIN')
+                yield db
+                db.commit()
+            except (sqlite3.Error, OSError, json.JSONDecodeError, UnicodeError) as exc:
+                if db is not None:
+                    db.rollback()
+                raise QuotaError('STORAGE') from exc
+            except BaseException:
+                if db is not None:
+                    db.rollback()
+                raise
+            finally:
+                if db is not None:
+                    db.close()
 
     @staticmethod
     def _key(key):

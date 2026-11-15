@@ -37,7 +37,7 @@ def validate_settings(data):
         if type(out[name]) is not int or not minimum <= out[name] <= maximum:
             raise SettingsError()
     value = out['warning_threshold_percent']
-    if type(value) not in (int,float) or not math.isfinite(value) or not 0 < value <= 100:
+    if type(value) not in (int,float) or not 0 < value <= 100 or not math.isfinite(value):
         raise SettingsError()
     profiles = out['allowed_profiles']
     if (not isinstance(profiles,list) or len(profiles)>1000 or any(

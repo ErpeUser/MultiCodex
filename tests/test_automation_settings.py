@@ -1,5 +1,6 @@
 import importlib
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -92,6 +93,41 @@ class SettingsTests(unittest.TestCase):
         self.settings.save({'automatic_activation_enabled':True})
         self.assertTrue(self.settings.load()['automatic_activation_enabled'])
         self.assertEqual(self.settings.load()['allowed_profiles'],[])
+
+    def test_invalid_numeric_thresholds_have_fixed_errors_and_preserve_settings(self):
+        self.settings.save({'allowed_profiles':['Work'],'warning_threshold_percent':90})
+        previous = self.settings.path.read_bytes()
+        cases = [('huge_positive',10**400),('huge_negative',-(10**400)),
+                 ('zero',0),('above_range',101),('boolean',True),
+                 ('nan',float('nan')),('positive_inf',float('inf')),('negative_inf',float('-inf'))]
+        for label, value in cases:
+            for operation in (self.mod.validate_settings,self.settings.save):
+                with self.subTest(case=label,operation=operation.__name__):
+                    with self.assertRaises(self.mod.SettingsError) as caught:
+                        operation({'warning_threshold_percent':value})
+                    self.assertEqual(caught.exception.code,'INVALID_SETTINGS')
+                    self.assertEqual(self.settings.path.read_bytes(),previous)
+                    self.assertEqual(self.settings.load()['allowed_profiles'],['Work'])
+        self.assertEqual(list(self.root.glob('.quota-settings-*')),[])
+
+    def test_invalid_integer_threshold_file_has_corrupt_error_and_is_preserved(self):
+        for label, value in [('huge_positive',10**400),('huge_negative',-(10**400)),('above_range',101)]:
+            original = json.dumps({'warning_threshold_percent':value}).encode('utf-8')
+            self.settings.path.write_bytes(original)
+            for operation in (self.settings.load,lambda:self.settings.save({'enabled':True})):
+                with self.subTest(case=label,operation=operation.__name__):
+                    with self.assertRaises(self.mod.SettingsError) as caught:
+                        operation()
+                    self.assertEqual(caught.exception.code,'CORRUPT_SETTINGS')
+                    self.assertEqual(self.settings.path.read_bytes(),original)
+        self.assertEqual(list(self.root.glob('.quota-settings-*')),[])
+
+    def test_valid_numeric_thresholds_roundtrip(self):
+        for value in (1,100,0.5,99.5):
+            with self.subTest(threshold=value):
+                saved = self.settings.save({'warning_threshold_percent':value})
+                self.assertEqual(saved['warning_threshold_percent'],value)
+                self.assertEqual(self.settings.load()['warning_threshold_percent'],value)
 
     def test_settings_symlink_is_refused(self):
         external=self.root/'external';external.write_text('original')

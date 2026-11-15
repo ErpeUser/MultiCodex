@@ -10,7 +10,7 @@ from .automation_settings import validate_settings, SettingsError
 from .quota import format_reset, format_countdown
 from .quota_view import (STATUS_TEXT, FRESHNESS_TEXT, ACCESS_TEXT, ERROR_TEXT,
                          REMOVED, filter_rows, summarize_rows, window_text, display_windows)
-from .ui_tokens import THEMES
+from .ui_tokens import THEMES, BREAKPOINTS
 
 
 def _family(widget):
@@ -28,21 +28,23 @@ def _button(master, text, command, palette, *, primary=False):
         activebackground=palette['selected'],activeforeground=palette['text'],
         disabledforeground=palette['muted'],highlightthickness=1,
         highlightbackground=palette['border'],highlightcolor=palette['accent'],
-        font=(_family(master),10),takefocus=True,cursor='hand2')
+        font=(_family(master),10),takefocus=True,cursor='hand2',
+        height=1)
     button.bind('<Return>',lambda event:button.invoke())
+    button.bind('<space>',lambda event:button.invoke())
     return button
 
 
 def _table_style(master,theme):
     p=THEMES[theme];style=ttk.Style(master);prefix='Quota'+theme.title()
     style.configure(prefix+'.Treeview',background=p['panel'],fieldbackground=p['panel'],foreground=p['text'],
-        borderwidth=0,rowheight=36,font=(_family(master),10))
+        borderwidth=0,rowheight=36,font=(_family(master),10),padding=(0, 2))
     style.map(prefix+'.Treeview',background=[('selected',p['selected'])],foreground=[('selected',p['text'])])
     style.configure(prefix+'.Treeview.Heading',background=p['rail'],foreground=p['muted'],
         font=(_family(master),9,'bold'),relief='flat',padding=(8,8))
     style.map(prefix+'.Treeview.Heading',background=[('active',p['selected'])])
     style.configure(prefix+'.TCombobox',fieldbackground=p['panel'],background=p['panel'],
-        foreground=p['text'],arrowcolor=p['text'])
+        foreground=p['text'],arrowcolor=p['text'],padding=(8, 5))
     style.map(prefix+'.TCombobox',fieldbackground=[('readonly',p['panel'])],foreground=[('readonly',p['text'])])
     return prefix
 
@@ -93,12 +95,14 @@ class QuotaPanel(tk.Frame):
         self.monitor_label=_label(header,'Monitoring pausiert',p,size=9,muted=True)
         self.monitor_label.grid(row=0,column=1,sticky='e',padx=(10,0))
         self.metrics=tk.Frame(self,bg=p['canvas']);self.metrics.grid(row=1,column=0,sticky='ew',pady=(0,14))
+        self.metric_cells=[]
         self.metric_labels=[]
         for index,title in enumerate(('Gespeicherte Konten','Live abgefragt','Pr\u00fcfung erforderlich')):
             self.metrics.grid_columnconfigure(index,weight=1,uniform='metrics')
             cell=tk.Frame(self.metrics,bg=p['panel']);cell.grid(row=0,column=index,sticky='ew',padx=(0,10 if index<2 else 0))
             value=_label(cell,'0',p,size=21,bold=True);value.pack(anchor='w',padx=14,pady=(9,0))
             _label(cell,title,p,size=9,muted=True).pack(anchor='w',padx=14,pady=(0,10))
+            self.metric_cells.append(cell)
             self.metric_labels.append(value)
         toolbar=tk.Frame(self,bg=p['canvas']);toolbar.grid(row=2,column=0,sticky='ew',pady=(0,9));toolbar.grid_columnconfigure(0,weight=1)
         self.query=tk.StringVar(self);self.status=tk.StringVar(self,value='Alle Konten')
@@ -138,12 +142,31 @@ class QuotaPanel(tk.Frame):
         self.filter.bind('<<ComboboxSelected>>',lambda event:self.refresh_rows())
         self.table.bind('<<TreeviewSelect>>',lambda event:self.select_row())
         self.bind('<Configure>',self._resize)
+        self._compact = None
+        self._metric_columns = None
 
     def _resize(self,event):
         if event.widget is self:
             width=max(160,event.width-10)
             self.account_label.configure(wraplength=width);self.provenance.configure(wraplength=width)
             self.message.configure(wraplength=max(90,width-250))
+            compact = width < BREAKPOINTS['stack']
+            if compact != self._compact:
+                self._compact = compact
+                self.primary.grid_forget();self.secondary.grid_forget()
+                if compact:
+                    self.primary.grid(row=2,column=0,columnspan=2,sticky='nsew',padx=0,pady=(0,6))
+                    self.secondary.grid(row=3,column=0,columnspan=2,sticky='nsew',padx=0)
+                else:
+                    self.primary.grid(row=2,column=0,sticky='nsew',padx=(0,5))
+                    self.secondary.grid(row=2,column=1,sticky='nsew',padx=(5,0))
+            columns = 1 if width < BREAKPOINTS['compact'] else 2 if width < BREAKPOINTS['wide'] else 3
+            if columns != self._metric_columns:
+                self._metric_columns = columns
+                for cell in self.metric_cells:cell.grid_forget()
+                for index,cell in enumerate(self.metric_cells):
+                    cell.grid(row=index//columns,column=index%columns,sticky='ew',padx=(0,10 if index%columns<columns-1 else 0),pady=(0,6))
+                for index in range(3):self.metrics.grid_columnconfigure(index,weight=1 if index<columns else 0,uniform='metrics')
 
     def _sort(self,column):
         self.sort_by='usage' if column in ('five','week') else 'account'
@@ -285,3 +308,4 @@ class QuotaSettingsPanel(tk.Frame):
             self.message.configure(text='Werte pr\u00fcfen: Intervall 30\u20133600, Schwelle > 0 bis 100, Versuche 1\u201310.');return
         self.message.configure(text='Speichern angefordert; Best\u00e4tigung folgt vom Backend.')
         self.on_save(data)
+

@@ -79,8 +79,11 @@ class QuotaMonitor:
             if self.cancel.is_set():
                 return self._result('CANCELLED',key)
             identity = result['identity']
+            observed_id = identity.get('account_id')
+            stored_id = account.get('account_id')
             if (identity['email'].casefold() != account['email'].casefold() or
-                account['account_id'] is not None and identity.get('account_id') != account['account_id']):
+                (stored_id is None) != (observed_id is None) or
+                (stored_id is not None and stored_id != observed_id)):
                 raise CodexError('ACCOUNT_MISMATCH')
             observed = result['observed_at']
             now = int(self.clock())

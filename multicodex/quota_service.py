@@ -105,14 +105,17 @@ class QuotaService:
             if operation['state'] not in ('IDLE','PAUSED'):
                 self.last_operation={**operation,'completed_at':int(self.clock())}
             now=int(self.clock())
+            accounts = self.store.accounts()
+            observations = self.store.observation_view([row['account_key'] for row in accounts])
             rows=[]
-            for account in self.store.accounts():
-                snap=self.store.latest(account['account_key'])
+            for account in accounts:
+                view = observations[account['account_key']]
+                snap = view['snapshot']
                 rows.append({'account':account,'snapshot':snap,
                     'quota':evaluate_snapshot(snap,account,now=now,max_age_seconds=config['max_age_seconds'],
                                               warning_threshold_percent=config['warning_threshold_percent']),
                     'binding_available':account['account_key'] in self.bindings,
-                    'polling':self.store.poll_state(account['account_key'])})
+                    'polling':view['polling']})
             return {'rows':rows,'settings':config,'profiles':profiles,'issues':issues,'operation':operation,
                     'last_operation':self.last_operation,'summary':summarize_rows(rows),'updated_at':now}
 

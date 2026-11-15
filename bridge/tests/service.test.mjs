@@ -83,3 +83,28 @@ test('redirected source file is rejected instead of following an unexpected path
     assert.equal(JSON.parse(invoke().stdout).error.code,'STORAGE_INVALID');
   });
 });
+
+test('inventory emits bounded well-formed text without changing source', () => {
+  const cases = [
+    ['controls', 'A\nB\u007f', 'AB'],
+    ['ASCII cap', 'X'.repeat(161), 'X'.repeat(160)],
+    ['complete pair', 'X'.repeat(158)+'\u{1f600}', 'X'.repeat(158)+'\u{1f600}'],
+    ['split pair', 'X'.repeat(159)+'\u{1f600}', 'X'.repeat(159)],
+    ['lone surrogates', '\ud800A\udc00', 'A']
+  ];
+  for (const [name, value, expected] of cases) {
+    const record={accountLabel:value,email:value,recordId:value,
+      refreshToken:'UNICODE-TOKEN-FIXTURE',addedAt:1,lastUsed:1};
+    withStore({version:3,activeIndex:0,accounts:[record]}, ({store,invoke}) => {
+      const original=readFileSync(store);const proc=invoke();assert.equal(proc.status,0,name);
+      const row=JSON.parse(proc.stdout).result.accounts[0];
+      for (const field of ['label','email','recordId']) {
+        assert.equal(row[field],expected,`${name}: ${field}`);
+        assert.ok(row[field].isWellFormed(),`${name}: ${field}`);
+        assert.ok(row[field].length<=160,`${name}: ${field}`);
+      }
+      assert.deepEqual(readFileSync(store),original);
+      assert.ok(!proc.stdout.includes('UNICODE-TOKEN-FIXTURE'));
+    });
+  }
+});

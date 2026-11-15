@@ -20,7 +20,8 @@ class SafeError extends Error {
 }
 const fail = code => { throw new SafeError(code); };
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
-const label = x => typeof x === 'string' ? x.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 160) : null;
+// Unicode mode removes lone surrogates after truncation, retaining complete pairs.
+const label = x => typeof x === 'string' ? x.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 160).replace(/[\uD800-\uDFFF]/gu, '') : null;
 const nodeCompatible = (() => {
   const [major, minor] = process.versions.node.split('.').map(Number);
   return major > 22 || (major === 22 && minor >= 19);

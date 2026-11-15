@@ -15,6 +15,7 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
+from .locks import BusyError, FileLock
 from .workspace_admin_api import AdminAPIError, _identifier
 from .quota_store import QuotaError, _safe_path
 
@@ -169,6 +170,16 @@ class WorkspaceOperations:
             self._save(db,row)
             return row
 
+    @contextmanager
+    def _execution_lock(self, workspace):
+        # Lease expiry does not prove that its original executor has stopped.
+        token=hashlib.sha256(workspace.encode('utf-8')).hexdigest()
+        try:
+            with FileLock(self.root/'.locks'/('workspace-'+token+'.lock')):
+                yield
+        except BusyError:
+            raise OperationError('BUSY') from None
+
     def _all(self, operation, workspace, key):
         rows={};query={};deadline=time.monotonic()+60
         for _ in range(50):
@@ -278,6 +289,12 @@ class WorkspaceOperations:
         return row
 
     def execute(self, identity, key):
+        row=self.get(identity)
+        if row['state']=='VERIFIED':return row
+        with self._execution_lock(row['review']['workspace_id']):
+            return self._execute(identity,key)
+
+    def _execute(self, identity, key):
         owner=uuid.uuid4().hex;now=int(self.clock())
         with self._db() as db:
             row=self._load(db,identity)
@@ -359,6 +376,11 @@ class WorkspaceOperations:
 
     def recover(self, identity):
         """After a crashed write, expire its lease and permit only readback."""
+        row=self.get(identity)
+        with self._execution_lock(row['review']['workspace_id']):
+            return self._recover(identity)
+
+    def _recover(self, identity):
         with self._db() as db:
             row=self._load(db,identity)
             if row['state'] not in {'EXECUTING','VERIFYING'}:raise OperationError()

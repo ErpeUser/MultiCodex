@@ -10,14 +10,17 @@ schema-gated Admin client. It is independent of quota-monitor triggers.
    snapshot. Unknown workspace scope is retained, never silently relabelled.
 4. Review the returned operation and approve its digest. Approval binds the full
    API contract fingerprint and before-state and expires after five minutes.
-5. Execute once. A workspace lease and atomic state claim prevent competing writes.
+5. Execute once. A lock held by the operating system for each workspace excludes
+   competing local execution and recovery until the active call finishes. The
+   journal lease and atomic state claim remain additional safeguards.
 6. Verify the resulting directory state. Invitations await acceptance; resend
    acknowledges a server request, not email delivery. No onboarding is automated.
 
 Changed preconditions invalidate the review. An ambiguous write is never replayed;
 `reconcile` performs reads only. After a crashed operation, `recover` requires the
-five-minute lease to expire and enables readback, not another mutation. Cancel is
-allowed before execution. Keys and raw provider responses are not persisted.
+execution lock to be free and the five-minute lease to expire. It enables readback,
+not another mutation. Cancel is allowed before execution. Keys and raw provider
+responses are not persisted.
 
 Confirmed removals retain all quota values. Known matching quota contexts are
 marked removed; unrelated or unknown contexts are not. A seat/role update makes

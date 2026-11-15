@@ -3,7 +3,9 @@ import copy
 import json
 from pathlib import Path
 import tempfile
+import threading
 import unittest
+from contextlib import contextmanager
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from multicodex.quota_store import QuotaStore
@@ -220,6 +222,77 @@ class OperationTests(unittest.TestCase):
         op=self.prepare(account_key=account);self.ops.approve(op['operation_id'],op['digest'])
         self.assertEqual(self.ops.execute(op['operation_id'],'key')['state'],'VERIFIED')
         self.assertEqual(self.quota.account(account)['membership_state'],'WORKSPACE_ACCESS_UNKNOWN')
+    @contextmanager
+    def paused_resend(self):
+        for name in ('i-a','i-b'):
+            self.provider.invites[name]={'id':name,'email':name+'@example.com','status':'pending'}
+        entered=threading.Event();release=threading.Event();outcomes=[]
+        def transport(method,url,key,body,timeout):
+            if method=='POST' and url.endswith('/invitations/i-a/resend'):
+                entered.set()
+                if not release.wait(10):raise RuntimeError('Test transport was not released')
+            return self.provider(method,url,key,body,timeout)
+        self.api.transport=transport
+        other=WorkspaceOperations(self.root/'admin',self.api,self.quota,clock=lambda:self.now)
+        first=self.ops.prepare('resend_invite','w','key',target='i-a')
+        self.ops.approve(first['operation_id'],first['digest'])
+        def execute():
+            try:outcomes.append(self.ops.execute(first['operation_id'],'key'))
+            except BaseException as exc:outcomes.append(exc)
+        worker=threading.Thread(target=execute);worker.start()
+        try:
+            self.assertTrue(entered.wait(5))
+            yield first['operation_id'],other
+        finally:
+            release.set();worker.join(5)
+            self.assertFalse(worker.is_alive())
+        self.assertEqual(len(outcomes),1)
+        self.assertIsInstance(outcomes[0],dict)
+        self.assertEqual(outcomes[0]['state'],'REQUEST_ACCEPTED')
+
+    def test_expired_lease_does_not_admit_a_second_live_writer(self):
+        with self.paused_resend() as (_,other):
+            self.now=1001
+            second=other.prepare('resend_invite','w','key',target='i-b')
+            other.approve(second['operation_id'],second['digest'])
+            self.now=1300  # A is still in transport; B's review expires at1301.
+            with self.assertRaises(OperationError) as caught:
+                other.execute(second['operation_id'],'key')
+            self.assertEqual(caught.exception.code,'BUSY')
+            self.assertEqual(other.get(second['operation_id'])['state'],'READY')
+            self.assertEqual(self.provider.writes,[])
+        self.assertEqual(other.execute(second['operation_id'],'key')['state'],'REQUEST_ACCEPTED')
+        self.assertEqual(self.provider.writes,[('POST','invitations/i-a/resend',None),
+                                              ('POST','invitations/i-b/resend',None)])
+
+    def test_recovery_refuses_a_live_executor_after_lease_expiry(self):
+        with self.paused_resend() as (identity,other):
+            self.now=1300
+            with self.assertRaises(OperationError) as caught:other.recover(identity)
+            self.assertEqual(caught.exception.code,'BUSY')
+            self.assertEqual(other.get(identity)['state'],'EXECUTING')
+
+    def test_live_executor_does_not_block_another_workspace(self):
+        with self.paused_resend() as (_,other):
+            other.api=AdminAPI(AdminContract(contract()),lambda method,url,key,body,timeout:
+                self.provider(method,url.replace('/workspaces/other/','/workspaces/w/'),key,body,timeout))
+            second=other.prepare('resend_invite','other','key',target='i-b')
+            other.approve(second['operation_id'],second['digest'])
+            self.assertEqual(other.execute(second['operation_id'],'key')['state'],'REQUEST_ACCEPTED')
+            self.assertEqual(self.provider.writes,[('POST','invitations/i-b/resend',None)])
+
+    def test_verified_result_remains_readable_during_another_write(self):
+        identity=self.authorized()
+        self.assertEqual(self.ops.execute(identity,'key')['state'],'VERIFIED')
+        with self.paused_resend() as (_,other):
+            self.assertEqual(other.execute(identity,'key')['state'],'VERIFIED')
+
+    def test_failed_start_does_not_keep_workspace_execution_locked(self):
+        operation=self.prepare()
+        with self.assertRaises(OperationError):self.ops.execute(operation['operation_id'],'key')
+        self.ops.approve(operation['operation_id'],operation['digest'])
+        self.assertEqual(self.ops.execute(operation['operation_id'],'key')['state'],'VERIFIED')
+
     def test_lease_blocks_other_mutation_in_same_workspace(self):
         identity=self.authorized()
         with self.ops._db() as db:db.execute('INSERT INTO leases VALUES(?,?,?)',('w','another-process',2000))

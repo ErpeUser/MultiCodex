@@ -38,10 +38,10 @@
 - Modify: `generated/project/governance/AGENTS.md`
 - Modify: `generated/project/docs/LAYOUT.md`
 
-- [ ] Add ignore rules and canonical root documentation.
-- [ ] Implement the layout/publication checker with a nonzero exit for misplaced or staged private artifacts.
-- [ ] Add tests for the canonical directories and representative ignored paths.
-- [ ] Run the focused layout tests.
+- [x] Add ignore rules and canonical root documentation.
+- [x] Implement the layout/publication checker with a nonzero exit for misplaced or staged private artifacts.
+- [x] Add tests for the canonical directories and representative ignored paths.
+- [x] Run the focused layout tests.
 
 ### Task 2: Pull/sync inventory for agents
 
@@ -50,9 +50,9 @@
 - Modify: `tests/test_generated_layout.py` or a focused new test module
 - Modify: `generated/project/governance/AGENTS.md`
 
-- [ ] Implement default-branch discovery, fetch/prune, branch inventory, open-PR inventory and ahead/behind classification.
-- [ ] Add a dry-run default and an explicit apply mode for clean integrations.
-- [ ] Test classification without network access using pure helper functions.
+- [x] Implement default-branch discovery, fetch/prune, branch inventory, open-PR inventory and ahead/behind classification.
+- [x] Add a dry-run default and an explicit apply mode for clean integrations.
+- [x] Test classification without network access using pure helper functions.
 
 ### Task 3: Public GitHub migration and verification
 
@@ -61,8 +61,8 @@
 - Modify: `.github/workflows/windows.yml`
 - Modify: public-history documentation that still says the repository is private
 
-- [ ] Move any root-level generated recovery note into ignored local storage.
-- [ ] Update stale private-repository statements and branch triggers.
-- [ ] Run layout, reference, unit and Node checks.
-- [ ] Create `ErpeUser/MultiCodex` as public with `main` as the default branch and push only the reviewed `main` history.
-- [ ] Verify repository visibility, default branch, branches, open PRs, and tracked-file safety with fresh commands.
+- [x] Move any root-level generated recovery note into ignored local storage.
+- [x] Update stale private-repository statements and branch triggers.
+- [x] Run layout, reference, unit and Node checks.
+- [x] Create `ErpeUser/MultiCodex` as public with `main` as the default branch and push only the reviewed `main` history.
+- [x] Verify repository visibility, default branch, branches, open PRs, and tracked-file safety with fresh commands.

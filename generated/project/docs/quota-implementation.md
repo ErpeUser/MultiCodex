@@ -1,6 +1,6 @@
 # Persistent quota history: implemented development slice
 
-Base: `bd532520a29e0848676e2b864c0fd7a6b4a5d510`, private `ErpeUser/MultiCodex`, `main`.
+Base: `bd532520a29e0848676e2b864c0fd7a6b4a5d510`, public `ErpeUser/MultiCodex`, `main`.
 The initial patch was published on `feature/quota-history-monitoring-20261114`.
 This document includes the subsequent activation/directory extension; it is not a
 release or the complete requested product. No production account was changed.

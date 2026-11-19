@@ -33,7 +33,7 @@ Die Historie beginnt unveraendert mit `55cda8426a1f203abcfffe569e87556034b68dce`
 | Reproduzierbare Abhaengigkeiten | Python-3.12-x64-Buildlock mit Wheel-Hashes und npm-Lock mit `npm ci` geprueft. Node-Archiv gepinnt; Compilerhash wird erfasst. Vollstaendig bitidentische Builds sind nicht zugesagt. |
 | Eigenes Anwendungssymbol, Signierung | Versionsressource vorhanden; eigenes Icon und Signatur fehlen. Keine SmartScreen-Zusage. |
 
-Das Zielrepository muss **privat bleiben: [`ErpeUser/MultiCodex`](https://github.com/ErpeUser/MultiCodex)**. Die aktuellen Buildaenderungen liegen lokal im Arbeitsbaum; es wurde kein Tag und kein GitHub Release angelegt. Die Veroeffentlichung bleibt bis zur vollstaendigen nativen Abnahme gesperrt; siehe [Installation](installation.md) und [Pruefmatrix](verification.md).
+Das Zielrepository ist das oeffentliche [`ErpeUser/MultiCodex`](https://github.com/ErpeUser/MultiCodex). Zugangsdaten, lokale Profile, Laufzeitausgaben und private Nachweise bleiben ausserhalb des versionierten Baums. Veroeffentlichungs- und Release-Aussagen benoetigen weiterhin die native Abnahme aus [Installation](installation.md) und [Pruefmatrix](verification.md).
 
 ## Bedienung
 

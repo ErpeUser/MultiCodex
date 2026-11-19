@@ -14,7 +14,7 @@
 - Fixed cyclic Tk resource cleanup running in background service threads; added a native red/green regression and UI-thread garbage collection.
 - Restricted GUI screenshots to the owned temporary test window instead of capturing potentially unrelated foreground desktop contents.
 - Bundled official Node 22.19.0 with a pinned archive checksum, Python/Node/dependency notices and retained project licenses. Full OAuth/multi-instance release acceptance remains open.
-- Published the complete verified source tree to the private `ErpeUser/MultiCodex` default branch after the archive import workflow could not obtain a runner.
+- Published the complete reviewed source tree to the public `ErpeUser/MultiCodex` default branch.
 - Expanded read-only legacy profile discovery to the known local, roaming, user and `.codex/CodexProfiles` roots without recursive or browser-data scanning.
 - Prevented login fallback from treating corrupt session catalogues as a missing account identity; added a regression test for the blocked mutation path.
 

@@ -46,7 +46,7 @@ Die vorhandenen Sicherheits-/Regressionstests fuer Profilpfade, Dateisperren, Ko
 | GUI | Alle Bedienelemente, Tastatur/Fokus/Kontrast und 100/125/150/200 Prozent DPI |
 | Installation | Upgrade zwischen verschiedenen Produktversionen; weitere Windows-Versionen |
 | Distribution | Vollstaendige Lizenzabnahme, eigenes Icon, optional legitime Signierung |
-| GitHub | Aktuellen Windows-Workflow ausfuehren, privaten Repositorystatus bewahren, vollstaendige native Freigabe vor Release |
+| GitHub | Aktuellen Windows-Workflow ausfuehren, oeffentlichen Repositorystatus und Standardbranch pruefen |
 
 Es wurde kein nativer Gesamtfreigabebericht ausgefuellt und keine vollstaendige Produktfreigabe behauptet. Die gesetzten Release-Blocker bleiben bestehen.
 

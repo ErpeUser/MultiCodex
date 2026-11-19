@@ -16,8 +16,27 @@ ClaudeProfiles/
 .env.*
 !.env.example
 # Centralized generated data: preserve generated/project as versioned source.
+/generated/*
+!/generated/project/
+!/generated/project/**
 /generated/runtime/
 /generated/local/
+
+# Recovery notes and local audit material never belong in the public tree.
+/generated/*.txt
+/_Audit_*/
+**/auth.json
+**/openai-codex-accounts.json
+**/api-routes.json
+**/local-client-tokens.json
+**/usage_cache.json
+**/Cookies
+**/Cookies-journal
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
 
 # Legacy fallback ignores if a tool accidentally writes outside generated/.
 # Build and dependencies

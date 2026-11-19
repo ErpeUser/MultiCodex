@@ -1,7 +1,7 @@
 name: Feature and main verification
 on:
   push:
-    branches: [main, 'feature/**', 'codex/**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -42,6 +42,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force generated/runtime/evidence | Out-Null
+          & python tools/check_generated_layout.py
+          if ($LASTEXITCODE -ne 0) { throw 'Generated layout/publication safety check failed' }
           & ./generated/runtime/dependencies/python/venv/Scripts/python.exe tools/check_references.py *> generated/runtime/evidence/reference-check.log
           if ($LASTEXITCODE -ne 0) { Get-Content generated/runtime/evidence/reference-check.log; throw 'Documentation reference validation failed' }
           & ./generated/runtime/dependencies/python/venv/Scripts/python.exe -m unittest discover -s tests -v *> generated/runtime/evidence/python-tests.log

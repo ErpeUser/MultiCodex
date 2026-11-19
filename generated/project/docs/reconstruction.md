@@ -39,7 +39,7 @@ Die frueheren wiederholten Quelltextabfragen und begonnenen/unterbrochenen Agent
 ## Entscheidungen und ihre Kosten
 
 1. **Historie erhalten.** Keine komplette Neuentwicklung. Preis: bestehende Plattformgrenzen bleiben sichtbar.
-2. **Privates MultiCodex.** Die konkrete Vorgabe am Anfang hat Vorrang vor dem generischen spaeteren Absatz zum oeffentlichen Repository. Bei gegenteiliger Auslegung bliebe das Projekt zu restriktiv, nicht versehentlich oeffentlich.
+2. **Oeffentliches MultiCodex.** Die aktuelle Repository-Vorgabe ist ein oeffentliches Quellcode-Repository. Private Laufzeitdaten bleiben ausgeschlossen.
 3. **Vorhandener Stack und Farben.** Kein dritter Designversuch; Verhalten zuerst. Preis: Figma-zu-Windows-Pixeltreue weiterhin nicht nachgewiesen.
 4. **Neue Logins ueber offiziellen App-Server und Keyring.** Kein selbstgebautes OAuth und kein Klartext-Tokenexport. Preis: der bereits gespeicherte globale Multi-Auth-Pool ist weiterhin nur lesbar, nicht sicher in neue Instanzen uebernehmbar.
 5. **Unbekannte Installation ablehnen.** Kein Raten von ChatGPT-2026-Pfaden. Preis: neue kombinierte Desktop-Builds koennen nicht gestartet werden, bis sie nativ geprueft sind.

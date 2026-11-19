@@ -37,7 +37,7 @@ class DistributionTests(unittest.TestCase):
         push_branches = re.search(r'^\s*branches:\s*\[([^]]+)\]', feature, re.MULTILINE)
         self.assertIsNotNone(push_branches)
         selected = {value.strip().strip('"').strip("'") for value in push_branches.group(1).split(',')}
-        self.assertTrue({'main', 'feature/**', 'codex/**'}.issubset(selected))
+        self.assertEqual(selected, {'main'})
         self.assertIn('--require-hashes', feature)
 
     def test_windows_build_is_clean_and_toolchain_bound(self):

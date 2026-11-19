@@ -6,13 +6,14 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_ROOT = {
     ".git", ".github", ".gitignore", "multicodex", "bridge", "tests",
-    "tools", "packaging", "plugins", "run.py", "generated",
+    "tools", "packaging", "plugins", "run.py", "generated", "AGENTS.md",
+    "README.md", "docs",
 }
 
 
 class GeneratedLayoutTests(unittest.TestCase):
     def test_every_root_entry_is_source_or_required_git_integration(self):
-        extras = {path.name for path in ROOT.iterdir()} - ALLOWED_ROOT
+        extras = {path.name for path in ROOT.iterdir()} - ALLOWED_ROOT - {"__pycache__"}
         self.assertEqual(extras, set(), f"Unexpected root artifacts: {sorted(extras)}")
 
     def test_reference_files_are_present_at_canonical_paths(self):
@@ -62,6 +63,10 @@ class GeneratedLayoutTests(unittest.TestCase):
             ["git", "-C", str(ROOT), "check-ignore", "-q",
              "generated/project/docs/README.md"], check=False, timeout=10)
         self.assertEqual(reference.returncode, 1)
+
+    def test_generated_layout_checker_accepts_only_canonical_categories(self):
+        from tools.check_generated_layout import violations
+        self.assertEqual(violations(), [])
 
 
 if __name__ == "__main__":

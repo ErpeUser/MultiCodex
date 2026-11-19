@@ -44,7 +44,7 @@ MultiCodex/
       git/pre-migration-backup/
   .github/workflows/       GitHub-required workflow location
   .gitignore               Root ignore rules required for normal Git
-  .git/                    Primary Git repository (two linked worktrees)
+  .git/                    Primary Git repository metadata
 ```
 
 `generated/project/` is source-controlled and **must not be automatically
@@ -58,11 +58,9 @@ must never be committed or uploaded.
 - GitHub Actions only discovers versioned workflow definitions under root
   `.github/workflows/`. No mirrored copies are maintained.
 - The root `.gitignore` must be readable in a fresh checkout.
-- The primary `.git/` must currently remain at the repository root. The
-  repository has a second linked worktree. Relocation was tested but made
-  `git worktree list` identify the primary worktree by its metadata path.
-  It was fully restored and both worktrees verified; the recovery copy is
-  ignored under `generated/local/git/pre-migration-backup/`.
+- The public checkout uses the repository default branch `main`. Agent work is
+  committed directly there. Feature branches and pull requests are not part of
+  the normal agent workflow.
 - `bridge/package.json` and `bridge/package-lock.json` are required source
   manifests. The **actual** packages live under
   `generated/runtime/dependencies/node/node_modules/`. On Windows,

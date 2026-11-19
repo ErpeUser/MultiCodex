@@ -12,7 +12,7 @@ class NativeScriptTests(unittest.TestCase):
         executable = shutil.which('pwsh')
         self.assertIsNotNone(executable, 'Native verification requires PowerShell 7')
         root = Path(__file__).resolve().parents[1]
-        script = ("$files=@('tools/verify_native.ps1','tools/build_windows.ps1','tools/installer_smoke.ps1'); "
+        script = ("$files=@('tools/verify_native.ps1','tools/build_windows.ps1','tools/installer_smoke.ps1','tools/pull_and_regenerate.ps1'); "
                   "foreach ($file in $files) { $tokens=$null; $errors=$null; "
                   "[System.Management.Automation.Language.Parser]::ParseFile("
                   "(Join-Path (Get-Location) $file),[ref]$tokens,[ref]$errors) | Out-Null; "

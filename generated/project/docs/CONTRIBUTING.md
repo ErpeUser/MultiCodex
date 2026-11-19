@@ -12,6 +12,12 @@ node --test bridge/tests/service.test.mjs
 python -m compileall -q multicodex tools run.py
 ```
 
+After synchronizing `main`, use `tools/pull_and_regenerate.ps1`. It checks the
+remote branches and pull requests, pulls fast-forward only, classifies the
+changed paths, and runs the affected Figma package or Windows EXE/installer
+workflow. Pass the assigned numeric Figma plugin ID with `-FigmaPluginId` when
+extension source changed. Documentation-only changes do not rebuild artifacts.
+
 Add a failing regression before changing safety behavior. Global account pinning is not per-instance mapping. Do not reintroduce manager CLI first-use effects, file-mode token export, automatic force-kills or plaintext auth fallback.
 
 A green unit-test suite is not native acceptance. Record actual Windows/CLI/Desktop versions, real GUI/DPI behavior, OAuth results and installer hash before proposing a release. An independent review is still required; the current recovery pass received only a self-review.

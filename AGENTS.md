@@ -9,6 +9,8 @@ This repository is public. Work in the existing checkout and use the repository 
 - Do not create pull requests for agent work. Commit reviewed changes directly to `main`, then push with `git push origin main`.
 - Never force-push. If the local branch is behind or diverged, resolve it on `main` after inspecting the remote and any open pull requests.
 - After every pull or fetch, inspect remote branches and open pull requests. Use the newest compatible fix, combine independent compatible changes, and stop for a conflict that needs a human choice.
+- Use `tools/pull_and_regenerate.ps1` for the pull path. It records the pre-pull commit, performs the fast-forward pull, classifies changed files, regenerates an affected Figma extension when `-FigmaPluginId` is supplied, and rebuilds/tests the Windows EXE, installer and shortcut definition when desktop inputs changed.
+- Documentation-only pulls finish without regeneration. A changed Figma renderer or token file requires a real assigned numeric plugin ID. A changed application, packaging or installer input runs the existing Windows build and its packaged runtime, GUI, installation, upgrade and uninstall checks.
 - Keep commits focused and describe the behavior changed. Run the relevant tests before committing.
 
 ## Generated and private data

@@ -197,7 +197,7 @@ def inventory(bundle: Path, python_lock: Path, node_lock: Path, commit: str, *,
                 and not locked.get('optional') and relative not in node_packages):
             blockers.append('NODE_PACKAGE_MISSING:' + relative)
 
-    for name, (ref, requires) in python_packages.items():
+    for ref, requires in python_packages.values():
         children = []
         for requirement in requires:
             match = re.match(r'([\w.-]+)', requirement)

@@ -2,7 +2,6 @@
 import importlib
 import importlib.util
 import unittest
-from types import SimpleNamespace
 
 
 class Host:

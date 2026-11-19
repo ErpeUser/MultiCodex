@@ -1,6 +1,5 @@
 """Contract tests use deliberately synthetic routes, not guessed live endpoints."""
 import copy
-import json
 import unittest
 from urllib.error import HTTPError, URLError
 from multicodex.workspace_admin_api import AdminAPI, AdminContract, AdminAPIError

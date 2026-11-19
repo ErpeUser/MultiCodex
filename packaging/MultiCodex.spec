@@ -30,7 +30,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='MultiCodex',
-    version=str(ROOT / 'packaging' / 'version_info.txt'),
+    version=str(ROOT / 'generated' / 'project' / 'config' / 'build' / 'version_info.txt'),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

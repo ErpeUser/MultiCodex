@@ -16,6 +16,15 @@ class CompilerIdentityTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     compiler_version(Path('ISCC.exe'))
 
+    def test_compiler_probe_isolated_in_generated_temp(self):
+        result = subprocess.CompletedProcess([], 0, 'MULTICODEX_INNO_VERSION=6.7.3', '')
+        with patch('subprocess.run', return_value=result) as process:
+            self.assertEqual(compiler_version(Path('ISCC.exe')), '6.7.3')
+        scratch = Path(process.call_args.kwargs['cwd'])
+        self.assertIn('generated', scratch.parts)
+        self.assertIn('runtime', scratch.parts)
+        self.assertNotEqual(scratch, Path.cwd())
+
     def test_failed_compilation_cannot_claim_version(self):
         with patch('subprocess.run', return_value=subprocess.CompletedProcess([], 1, 'MULTICODEX_INNO_VERSION=6.7.3', 'error')):
             with self.assertRaises(ValueError):

@@ -2,7 +2,6 @@ import importlib
 import importlib.util
 from pathlib import Path
 import tempfile
-import threading
 import unittest
 from multicodex.codex_client import CodexError
 from multicodex.quota_store import QuotaStore

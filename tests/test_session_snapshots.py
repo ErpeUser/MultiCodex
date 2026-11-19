@@ -133,7 +133,7 @@ class SessionSnapshotTests(unittest.TestCase):
         original_bytes = self.meta.read_bytes()
         self.profile.home.rename(original_home)
         result = subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J',
-            str(self.profile.home), str(original_home)], capture_output=True, text=True)
+            str(self.profile.home), str(original_home)], capture_output=True)
         if result.returncode:
             self.skipTest('Host cannot create a temporary test junction')
         try:

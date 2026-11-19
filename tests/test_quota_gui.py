@@ -2,7 +2,6 @@ import importlib
 import importlib.util
 from pathlib import Path
 import tempfile
-import threading
 import unittest
 from types import SimpleNamespace
 from multicodex.automation_settings import DEFAULTS

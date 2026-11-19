@@ -15,13 +15,20 @@ ClaudeProfiles/
 .env
 .env.*
 !.env.example
+# Centralized generated data: preserve generated/project as versioned source.
+/generated/runtime/
+/generated/local/
+
+# Legacy fallback ignores if a tool accidentally writes outside generated/.
 # Build and dependencies
 node_modules/
-bridge/node_modules/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 build/
 dist/
 output/
@@ -31,7 +38,7 @@ output/
 # local runtime
 *.log
 *.tmp
-.SDStore
+.DS_Store
 # Recovery scratch and real runtime state never belong in commits
 .superpowers/
 profiles/

@@ -18,10 +18,3 @@ def eligibility(row, allowed_profiles, *, workspace_id=None):
     if quota.get('freshness') != 'LIVE_VERIFIED' or quota.get('capacity_confirmed') is not True:
         return 'QUOTA_UNAVAILABLE'
     return None
-
-
-def rank_candidates(rows, allowed_profiles, *, workspace_id=None):
-    """Preview only. A caller must bind a start request to one explicit account key."""
-    accepted = [r for r in rows if eligibility(r, allowed_profiles, workspace_id=workspace_id) is None]
-    return sorted(accepted, key=lambda r: (r['quota'].get('max_used_percent', 1000),
-        r['account']['profile_id'].casefold(), r['account']['account_key']))

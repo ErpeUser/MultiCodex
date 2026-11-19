@@ -9,6 +9,7 @@ import argparse
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 
 
 def compiler_version(compiler: Path) -> str:
@@ -19,8 +20,11 @@ AppVersion=1
 CreateAppDir=no
 Uninstallable=no
 '''
-    result = subprocess.run([str(compiler), '/O-', '-'], input=script,
-                            capture_output=True, text=True, timeout=30)
+    temp_root = Path(__file__).resolve().parents[1] / 'generated/runtime/temp'
+    temp_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='inno-identity-', dir=temp_root) as workspace:
+        result = subprocess.run([str(compiler), '/O-', '-'], input=script,
+                                capture_output=True, text=True, timeout=30, cwd=workspace)
     versions = re.findall(r'^(?:\s*Line \d+: )?MULTICODEX_INNO_VERSION=(\d+\.\d+\.\d+)\s*$',
                           result.stdout + '\n' + result.stderr, re.MULTILINE)
     if result.returncode != 0 or len(versions) != 1:

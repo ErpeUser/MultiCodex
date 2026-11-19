@@ -4,7 +4,6 @@ from types import SimpleNamespace
 import importlib
 import importlib.util
 import tempfile
-import threading
 import unittest
 from multicodex.codex_client import AccountIdentity
 from multicodex.profiles import ProfileStore
@@ -53,7 +52,7 @@ class ActivationTests(unittest.TestCase):
     def request(self):return self.engine.request(self.key)
 
     def test_explicit_target_is_started_without_touching_other_windows(self):
-        run=self.request();result=self.engine.tick()
+        self.request();result=self.engine.tick()
         self.assertEqual(result['state'],'COMPLETED')
         self.assertTrue(result['binding_verified']);self.assertFalse(result['foreground'])
         self.assertEqual(self.profiles.get('Work').session_id,self.sid)

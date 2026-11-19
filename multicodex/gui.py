@@ -80,7 +80,6 @@ class MultiCodexApp(ctk.CTk):
         self.login_events = queue.Queue(maxsize=16)
         self.login_url = None
         self.login_profile = None
-        self.login_browser_opened = False
         self._browser_lock = threading.Lock()
         self.page = 'Overview'
         self._poll_id = None
@@ -568,7 +567,6 @@ class MultiCodexApp(ctk.CTk):
                 break
             if not self.closing and cancel is self.login_cancel and not cancel.is_set():
                 self.login_url = url
-                self.login_browser_opened = opened
                 self._set_status('Browser wird geöffnet. Anmeldung kann hier abgebrochen werden.' if opened is None else
                     'Im Browser mit OpenAI anmelden. Browser bei Bedarf erneut öffnen.' if opened else
                     'Der Browser konnte nicht geöffnet werden. Unter Konten auf Browser erneut öffnen klicken.')
@@ -687,7 +685,6 @@ class MultiCodexApp(ctk.CTk):
         self.login_cancel = cancel
         self.login_profile = name
         self.login_url = None
-        self.login_browser_opened = False
         def open_login(url):
             self._open_login_browser(cancel, validate_login_url(url))
         accepted = self._submit('mutation', lambda: self.services.operations.login(name,

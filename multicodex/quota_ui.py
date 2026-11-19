@@ -265,11 +265,11 @@ class QuotaPanel(tk.Frame):
         tree.grid(row=0,column=0,sticky='nsew')
         scroll=ttk.Scrollbar(box,command=tree.yview);scroll.grid(row=0,column=1,sticky='ns');tree.configure(yscrollcommand=scroll.set)
         horizontal=ttk.Scrollbar(box,orient='horizontal',command=tree.xview);horizontal.grid(row=1,column=0,sticky='ew');tree.configure(xscrollcommand=horizontal.set)
+        def value(row, slot):
+            used=row.get(slot+'_used_percent');duration=row.get(slot+'_duration_minutes')
+            return 'Unbekannt' if used is None else f'{used:g} % / {duration or "?"} min'
         for row in rows:
-            def value(slot):
-                used=row.get(slot+'_used_percent');duration=row.get(slot+'_duration_minutes')
-                return 'Unbekannt' if used is None else f'{used:g} % / {duration or "?"} min'
-            tree.insert('','end',values=(format_reset(row['observed_at']),value('primary'),value('secondary'),row.get('plan_type') or 'Unbekannt',ACCESS_TEXT.get(row.get('access_state'),'Unbekannt')))
+            tree.insert('','end',values=(format_reset(row['observed_at']),value(row,'primary'),value(row,'secondary'),row.get('plan_type') or 'Unbekannt',ACCESS_TEXT.get(row.get('access_state'),'Unbekannt')))
         actions=tk.Frame(window,bg=p['canvas']);actions.grid(row=3,column=0,sticky='ew',padx=20,pady=15)
         _label(actions,f'Messungen {offset+1 if rows else 0}\u2013{offset+len(rows)}',p,muted=True).pack(side='left')
         next_button=_button(actions,'\u00c4ltere',lambda:self.on_history(key,offset+100),p);next_button.pack(side='right')

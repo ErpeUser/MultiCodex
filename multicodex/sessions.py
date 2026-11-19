@@ -9,7 +9,6 @@ import json
 import time
 import tomllib
 import uuid
-from pathlib import Path
 from .codex_client import AccountIdentity
 from .locks import FileLock
 from .profiles import (MAX_PROFILE_BYTES, MAX_PROFILE_SESSIONS, ProfileStore, ProfileError,

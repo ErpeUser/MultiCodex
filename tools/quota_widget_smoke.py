@@ -5,7 +5,6 @@ capture requires --isolated-display and Linux; never capture a user's desktop.
 """
 from __future__ import annotations
 import argparse
-import copy
 import hashlib
 import json
 import os

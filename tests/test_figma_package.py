@@ -53,9 +53,9 @@ class FigmaPackageTests(unittest.TestCase):
     def test_changed_source_tokens_make_old_package_stale(self):
         source = Path(self.tmp.name) / 'source'
         (source / 'multicodex').mkdir(parents=True)
-        (source / 'design/figma').mkdir(parents=True)
+        (source / 'plugins/figma').mkdir(parents=True)
         shutil.copyfile(ROOT / 'multicodex/ui_tokens.py', source / 'multicodex/ui_tokens.py')
-        shutil.copyfile(ROOT / 'design/figma/renderer.js', source / 'design/figma/renderer.js')
+        shutil.copyfile(ROOT / 'plugins/figma/renderer.js', source / 'plugins/figma/renderer.js')
         builder.build_package(source, self.output, PLUGIN_ID)
         token_file = source / 'multicodex/ui_tokens.py'
         token_file.write_text(token_file.read_text().replace('#0D1114', '#0C1013'))
@@ -85,7 +85,7 @@ class FigmaPackageTests(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which('node'), 'Node.js is required for plugin contract tests')
     def test_node_renderer_suite(self):
-        run = subprocess.run([shutil.which('node'), '--test', 'design/figma/tests/renderer.test.cjs'],
+        run = subprocess.run([shutil.which('node'), '--test', 'tests/figma/renderer.test.cjs'],
                              cwd=ROOT, capture_output=True, text=True, timeout=60)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 

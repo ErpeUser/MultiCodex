@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from urllib.parse import urlsplit
 from multicodex.quota_store import QuotaStore
-from multicodex.workspace_admin_api import AdminAPI, AdminContract, AdminAPIError
+from multicodex.workspace_admin_api import AdminAPI, AdminContract
 from multicodex.workspace_operations import OperationError
 from test_workspace_admin_api import contract
 

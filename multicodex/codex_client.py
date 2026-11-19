@@ -60,7 +60,7 @@ class AccountIdentity:
             ident = None
         return cls(email, plan, ident)
 
-    def same_account(self, other: 'AccountIdentity') -> bool:
+    def same_account(self, other: AccountIdentity) -> bool:
         if not isinstance(other, AccountIdentity):
             return False
         ids_match = ((self.account_id is None and other.account_id is None) or

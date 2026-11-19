@@ -7,11 +7,11 @@ AppId={{CCB8A29E-9E8D-4856-976E-0C873B4C98A2}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=MultiCodex contributors
-LicenseFile=..\LICENSE
+LicenseFile=..\generated\project\licenses\LICENSE
 DefaultDirName={localappdata}\Programs\MultiCodex
 DefaultGroupName=MultiCodex
 UninstallDisplayIcon={app}\MultiCodex.exe
-OutputDir=..\output
+OutputDir=..\generated\runtime\output
 OutputBaseFilename=Codex-Multi-Studio-Setup-v{#AppVersion}
 PrivilegesRequired=lowest
 Compression=lzma2
@@ -25,7 +25,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "..\dist\MultiCodex\*"; DestDir: "{app}"; Flags: ignoreversion recurseSubdirs createallsubdirs
+Source: "..\generated\runtime\dist\MultiCodex\*"; DestDir: "{app}"; Flags: ignoreversion recurseSubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\MultiCodex"; Filename: "{app}\MultiCodex.exe"

@@ -42,7 +42,7 @@ class ProcessLifecycleTests(unittest.TestCase):
         slot=self.home/'.sessions'/'test';slot.mkdir(parents=True)
         executable=self.home.parent/'ChatGPT.exe';executable.touch();platform=Platform([])
         InstanceController(platform).launch(executable,self.home,auth_home=slot)
-        self.assertEqual(platform.launched[0][2]['CODEX_HOME'],str(slot))
+        self.assertEqual(Path(platform.launched[0][2]['CODEX_HOME']).resolve(), slot.resolve())
     def test_auth_home_cannot_escape_profile(self):
         outside=self.home.parent/'outside';outside.mkdir()
         executable=self.home.parent/'ChatGPT.exe';executable.touch()

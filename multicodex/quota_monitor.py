@@ -9,7 +9,7 @@ import time
 from .automation_settings import validate_settings
 from .codex_client import CodexError
 from .locks import FileLock, BusyError
-from .quota_store import ERROR_CODES, QuotaError
+from .quota_store import ERROR_CODES
 
 REMOVED = frozenset({'ACCESS_REMOVED','WORKSPACE_ACCESS_REMOVED','SEAT_UNAVAILABLE'})
 

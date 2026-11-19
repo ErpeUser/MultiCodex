@@ -1,7 +1,6 @@
 import importlib
 import importlib.util
 import tempfile
-import threading
 import unittest
 from contextlib import contextmanager
 from pathlib import Path

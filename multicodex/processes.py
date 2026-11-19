@@ -14,6 +14,10 @@ class ProcessSafetyError(RuntimeError):
 def _normalize(s: str) -> str:
     # Windows command paths are case-insensitive; on Unix test paths are not.
     path = os.path.normpath(s.strip('"'))
+    # Windows may report the same local directory via an 8.3 short name.
+    # Canonicalize only local absolute paths; never resolve network paths.
+    if os.name == 'nt' and os.path.isabs(path) and not path.startswith('\\\\'):
+        path = os.path.realpath(path)
     return os.path.normcase(path)
 
 

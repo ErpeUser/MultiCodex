@@ -4,7 +4,6 @@ import importlib
 import importlib.util
 import threading
 import unittest
-from contextlib import contextmanager
 from multicodex.codex_client import AccountIdentity, CodexError
 
 

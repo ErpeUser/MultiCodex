@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,6 +39,17 @@ class ProcessTests(unittest.TestCase):
             self.assertEqual(InstanceController(FakePlatform([malicious])).stop(a),0)
             self.assertFalse(malicious.stopped)
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows 8.3 aliases only')
+    def test_short_windows_path_alias_selects_only_the_same_profile(self):
+        long_home = Path('C:/Program Files/Common Files')
+        short_home = Path('C:/PROGRA~1/Common Files')
+        if not long_home.is_dir() or not short_home.is_dir():
+            self.skipTest('Host does not expose a known 8.3 path alias')
+        selected = FakeProcess(10, ['ChatGPT.exe', '--user-data-dir', str(short_home / 'electron')])
+        other = FakeProcess(11, ['ChatGPT.exe', '--user-data-dir', str(short_home) + '-other/electron'])
+        matches = InstanceController(FakePlatform([selected, other])).matching(long_home)
+        self.assertEqual([process.pid for process in matches], [10])
+
     def test_refuses_unsafe_profile_root(self):
         with self.assertRaises(ProcessSafetyError):
             InstanceController(FakePlatform([])).stop(Path('/'))
@@ -49,9 +61,10 @@ class ProcessTests(unittest.TestCase):
             platform=FakePlatform([])
             InstanceController(platform).launch(Path(d,'ChatGPT.exe'),profile)
             exe,args,env=platform.launched[0]
-            self.assertEqual(env['CODEX_HOME'],str(profile/'.codex'))
-            self.assertEqual(env['CODEX_ELECTRON_USER_DATA_PATH'],str(profile/'electron'))
-            self.assertEqual(args, ['--user-data-dir',str(profile/'electron')])
+            self.assertEqual(Path(env['CODEX_HOME']).resolve(), (profile/'.codex').resolve())
+            self.assertEqual(Path(env['CODEX_ELECTRON_USER_DATA_PATH']).resolve(), (profile/'electron').resolve())
+            self.assertEqual(args[0], '--user-data-dir')
+            self.assertEqual(Path(args[1]).resolve(), (profile/'electron').resolve())
 
 
 if __name__ == '__main__': unittest.main()

@@ -1,6 +1,5 @@
 """The installed smoke must fail closed without a usable bundled facade."""
 import json
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile

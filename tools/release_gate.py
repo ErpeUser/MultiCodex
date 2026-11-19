@@ -148,6 +148,9 @@ def main():
     args = parser.parse_args()
     raw = os.environ.get('MULTICODEX_RELEASE_ACCEPTANCE', '')
     try:
+        if (os.environ.get('GITHUB_ACTIONS') == 'true' and
+                os.environ.get('MULTICODEX_GITHUB_REPOSITORY_PRIVATE') != 'true'):
+            raise ReleaseBlocked('Publication requires a private repository')
         if not raw or len(raw) > 65536:
             raise ReleaseBlocked('Set native acceptance for this exact build before publication')
         evidence = json.loads(raw)

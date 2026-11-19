@@ -37,7 +37,7 @@ def _source_files(root: Path, plugin_id: str) -> dict[str, bytes]:
     root = _plain_path(root)
     try:
         token_bytes = _plain_path(root / 'multicodex/ui_tokens.py').read_bytes()
-        renderer = _plain_path(root / 'design/figma/renderer.js').read_bytes()
+        renderer = _plain_path(root / 'plugins/figma/renderer.js').read_bytes()
         if len(token_bytes) > 65536 or len(renderer) > 262144:
             raise PackageError('SOURCE_TOO_LARGE')
         values = {}

@@ -1,7 +1,7 @@
 name: Feature and main verification
 on:
   push:
-    branches: [main, 'feature/**']
+    branches: [main, 'feature/**', 'codex/**']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -14,6 +14,11 @@ jobs:
     name: Full Python, Node and GUI regression suites
     runs-on: windows-2025
     timeout-minutes: 30
+    env:
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/generated/runtime/cache/pycache
+      PIP_CACHE_DIR: ${{ github.workspace }}/generated/runtime/cache/pip
+      npm_config_cache: ${{ github.workspace }}/generated/runtime/cache/npm
+      RUFF_CACHE_DIR: ${{ github.workspace }}/generated/runtime/cache/ruff
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -27,37 +32,41 @@ jobs:
       - name: Install locked project dependencies
         shell: pwsh
         run: |
-          & python -m pip install --only-binary=:all: --require-hashes -r requirements-build.windows-x64.lock
+          & python -m venv generated/runtime/dependencies/python/venv
+          if ($LASTEXITCODE -ne 0) { throw 'Python virtual environment creation failed' }
+          & ./generated/runtime/dependencies/python/venv/Scripts/python.exe -m pip install --only-binary=:all: --require-hashes -r generated/project/config/python/requirements-build.windows-x64.lock
           if ($LASTEXITCODE -ne 0) { throw 'Locked Python installation failed' }
-          & npm ci --prefix bridge --omit=dev --ignore-scripts --no-audit --no-fund
+          & ./tools/setup_node_deps.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Locked Node installation failed' }
       - name: Full test suites
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force evidence | Out-Null
-          & python -m unittest discover -s tests -v *> evidence/python-tests.log
-          if ($LASTEXITCODE -ne 0) { Get-Content evidence/python-tests.log; throw 'Python tests failed' }
-          & node --test bridge/tests/service.test.mjs *> evidence/node-tests.log
-          if ($LASTEXITCODE -ne 0) { Get-Content evidence/node-tests.log; throw 'Node tests failed' }
-          & python -m compileall -q multicodex tests tools run.py
+          New-Item -ItemType Directory -Force generated/runtime/evidence | Out-Null
+          & ./generated/runtime/dependencies/python/venv/Scripts/python.exe tools/check_references.py *> generated/runtime/evidence/reference-check.log
+          if ($LASTEXITCODE -ne 0) { Get-Content generated/runtime/evidence/reference-check.log; throw 'Documentation reference validation failed' }
+          & ./generated/runtime/dependencies/python/venv/Scripts/python.exe -m unittest discover -s tests -v *> generated/runtime/evidence/python-tests.log
+          if ($LASTEXITCODE -ne 0) { Get-Content generated/runtime/evidence/python-tests.log; throw 'Python tests failed' }
+          & node --test bridge/tests/service.test.mjs *> generated/runtime/evidence/node-tests.log
+          if ($LASTEXITCODE -ne 0) { Get-Content generated/runtime/evidence/node-tests.log; throw 'Node tests failed' }
+          & ./generated/runtime/dependencies/python/venv/Scripts/python.exe -m compileall -q multicodex tests tools run.py
           if ($LASTEXITCODE -ne 0) { throw 'Python compilation failed' }
       - name: GUI smoke without production accounts
         shell: pwsh
         run: |
-          & python run.py --gui-smoke --report evidence/gui-check.json
+          & ./generated/runtime/dependencies/python/venv/Scripts/python.exe run.py --gui-smoke --report generated/runtime/evidence/gui-check.json
           if ($LASTEXITCODE -ne 0) { throw 'GUI smoke failed' }
       - name: Source and locked wheels for offline reproduction
         if: always()
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force evidence/offline | Out-Null
-          & git archive --format=tar HEAD > evidence/offline/source.tar
-          & python -m pip download --require-hashes --only-binary=:all: --dest evidence/offline -r requirements-build.windows-x64.lock
-          & python -m pip freeze > evidence/environment.txt
+          New-Item -ItemType Directory -Force generated/runtime/evidence/offline | Out-Null
+          & git archive --format=tar HEAD > generated/runtime/evidence/offline/source.tar
+          & ./generated/runtime/dependencies/python/venv/Scripts/python.exe -m pip download --require-hashes --only-binary=:all: --dest generated/runtime/evidence/offline -r generated/project/config/python/requirements-build.windows-x64.lock
+          & ./generated/runtime/dependencies/python/venv/Scripts/python.exe -m pip freeze > generated/runtime/evidence/environment.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: feature-verification-${{ github.sha }}
-          path: evidence/
+          path: generated/runtime/evidence/
           retention-days: 7
           if-no-files-found: error

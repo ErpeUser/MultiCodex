@@ -161,7 +161,7 @@ print('child-reaped', flush=True)
                 cancel = app.login_cancel if operation == 'login' else app.quota.cancel
                 started, finished = threading.Event(), threading.Event()
                 callbacks = []
-                def work():
+                def work(started=started, cancel=cancel, finished=finished):
                     started.set()
                     cancel.wait(3)
                     finished.set()
@@ -192,7 +192,6 @@ print('child-reaped', flush=True)
                         app._open_login_browser(cancel, 'https://auth.openai.com/authorize?fixture=' + str(index))
                 app._poll_results()
                 self.assertEqual(app.login_url, 'https://auth.openai.com/authorize?fixture=16')
-                self.assertFalse(app.login_browser_opened)
                 self.assertIn('konnte nicht', app.status_bar.cget('text'))
                 for _ in range(16):
                     app.login_events.put_nowait((cancel, 'https://auth.openai.com/authorize?stale=1', True))

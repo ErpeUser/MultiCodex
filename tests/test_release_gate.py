@@ -1,10 +1,15 @@
 import hashlib
+import io
 import json
+import os
+import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from tools.release_gate import check_acceptance, check_supply_chain, ReleaseBlocked, REQUIRED_CHECKS
+from tools.release_gate import check_acceptance, check_supply_chain, ReleaseBlocked, REQUIRED_CHECKS, main
 
 class ReleaseGateTests(unittest.TestCase):
     def setUp(self):
@@ -13,11 +18,40 @@ class ReleaseGateTests(unittest.TestCase):
         self.setup.write_bytes(b'Not an installer: synthetic gate-test payload only')
         self.commit='a'*40
         self.evidence={'schema':1,'source_commit':self.commit,'setup_sha256':hashlib.sha256(self.setup.read_bytes()).hexdigest(),
-                       'reviewer':'fixture-reviewer','checked_at':'2026-11-13T10:00:00+00:00',
+                       'reviewer':'fixture-reviewer','checked_at':datetime.now(timezone.utc).isoformat(),
                        'checks':{key:True for key in REQUIRED_CHECKS}}
 
     def check(self):
         return check_acceptance(self.evidence,self.commit,self.setup)
+
+    def test_ci_public_repository_is_blocked_before_native_acceptance(self):
+        argv = ['release_gate.py', '--commit', self.commit, '--setup', str(self.setup),
+                '--sbom', 'missing.json', '--license-report', 'missing-license.json']
+        environment = {'GITHUB_ACTIONS': 'true', 'MULTICODEX_GITHUB_REPOSITORY_PRIVATE': 'false',
+                       'MULTICODEX_RELEASE_ACCEPTANCE': ''}
+        output = io.StringIO()
+        with patch.dict(os.environ, environment, clear=True), patch.object(sys, 'argv', argv), redirect_stdout(output):
+            self.assertEqual(main(), 1)
+        self.assertIn('private repository', output.getvalue().lower())
+
+    def test_ci_missing_visibility_is_blocked_even_before_acceptance(self):
+        argv = ['release_gate.py', '--commit', self.commit, '--setup', str(self.setup),
+                '--sbom', 'missing.json', '--license-report', 'missing-license.json']
+        output = io.StringIO()
+        with patch.dict(os.environ, {'GITHUB_ACTIONS': 'true'}, clear=True), patch.object(sys, 'argv', argv), redirect_stdout(output):
+            self.assertEqual(main(), 1)
+        self.assertIn('private repository', output.getvalue().lower())
+
+    def test_ci_private_repository_still_requires_native_acceptance(self):
+        argv = ['release_gate.py', '--commit', self.commit, '--setup', str(self.setup),
+                '--sbom', 'missing.json', '--license-report', 'missing-license.json']
+        environment = {'GITHUB_ACTIONS': 'true', 'MULTICODEX_GITHUB_REPOSITORY_PRIVATE': 'true',
+                       'MULTICODEX_RELEASE_ACCEPTANCE': ''}
+        output = io.StringIO()
+        with patch.dict(os.environ, environment, clear=True), patch.object(sys, 'argv', argv), redirect_stdout(output):
+            self.assertEqual(main(), 1)
+        self.assertIn('native acceptance', output.getvalue().lower())
+        self.assertNotIn('private repository', output.getvalue().lower())
 
     def test_empty_evidence_blocks_release(self):
         with self.assertRaises(ReleaseBlocked):

@@ -35,16 +35,6 @@ TEXT_SIZE = {
     'title': TYPE_SCALE['title'], 'section': TYPE_SCALE['section'],
     'body': TYPE_SCALE['body'], 'label': TYPE_SCALE['micro'], 'caption': 11,
 }
-STATUS_COLORS = {
-    'success': {'dark': '#8FD3C7', 'light': '#1E625B'},
-    'warning': {'dark': '#F2C879', 'light': '#8A5A00'},
-    'danger': {'dark': '#F28B82', 'light': '#A62B24'},
-    'info': {'dark': '#9CC9E8', 'light': '#1F5D86'},
-}
-
-def status_color(theme, status):
-    """Return a semantic state color; state text remains mandatory in views."""
-    return STATUS_COLORS.get(status, STATUS_COLORS['info'])[theme]
 STATUS_TEXT = {
     'running': 'Läuft', 'idle': 'Bereit', 'unknown': 'Unbekannt',
     'invalidated': 'Ungültig', 'disabled': 'Deaktiviert',
